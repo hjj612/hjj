@@ -2,9 +2,10 @@
 
 import { useEffect } from 'react';
 
+// 타입 충돌을 피하기 위해 더 구체적인 타입 선언
 declare global {
   interface Window {
-    TradingView: {
+    TradingViewWidget?: {
       widget: new (config: any) => any;
     };
   }
@@ -17,21 +18,29 @@ const TradingViewWidget = () => {
     script.type = 'text/javascript';
     script.async = true;
     script.onload = () => {
-      if (typeof window.TradingView !== 'undefined') {
-        new window.TradingView.widget({
-          autosize: true,
-          symbol: "NASDAQ:AAPL",
-          interval: "D",
-          timezone: "Asia/Seoul",
-          theme: "light",
-          style: "1",
-          locale: "kr",
-          toolbar_bg: "#f1f3f6",
-          enable_publishing: false,
-          allow_symbol_change: true,
-          container_id: "tradingview_chart"
-        });
+      // 안전한 타입 체크
+      if (typeof (window as any).TradingView !== 'undefined') {
+        try {
+          new (window as any).TradingView.widget({
+            autosize: true,
+            symbol: "NASDAQ:AAPL",
+            interval: "D",
+            timezone: "Asia/Seoul",
+            theme: "light",
+            style: "1",
+            locale: "kr",
+            toolbar_bg: "#f1f3f6",
+            enable_publishing: false,
+            allow_symbol_change: true,
+            container_id: "tradingview_chart"
+          });
+        } catch (error) {
+          console.warn('TradingView widget failed to load:', error);
+        }
       }
+    };
+    script.onerror = () => {
+      console.warn('Failed to load TradingView script');
     };
     document.head.appendChild(script);
 
