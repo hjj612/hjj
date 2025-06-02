@@ -2,15 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
-interface TradingViewType {
-  widget: (config: any) => void;
-}
-
-declare global {
-  interface Window {
-    TradingView: TradingViewType;
-  }
-}
+// 타입 충돌 방지를 위해 global interface 선언 제거
+// TradingView는 런타임에 동적으로 로드되므로 any 타입으로 처리
 
 const TickerTapeWidget = () => {
   const containerRef = useRef<HTMLDivElement>(null);
