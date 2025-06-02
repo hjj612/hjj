@@ -1,25 +1,34 @@
+import * as tf from '@tensorflow/tfjs';
+
 // 간단한 시계열 예측 모델 (ARIMA 대신 이동평균 기반)
-interface PredictionParams {
-  p: number; // 과거 데이터 참조 개수
-  d: number; // 차분 횟수  
-  q: number; // 이동평균 개수
+interface ArimaParams {
+  p: number; // AR order (자기회귀 차수)
+  d: number; // Difference order (차분 차수)
+  q: number; // MA order (이동평균 차수)
 }
 
 export class ArimaModel {
-  private params: PredictionParams;
+  private params: ArimaParams;
   private data: number[];
-  private weights: number[];
+  private differenced: number[];
+  private arCoefficients: number[];
+  private maCoefficients: number[];
+  private residuals: number[];
 
-  constructor(params: PredictionParams) {
+  constructor(params: ArimaParams) {
     this.params = params;
     this.data = [];
-    this.weights = [];
+    this.differenced = [];
+    this.arCoefficients = [];
+    this.maCoefficients = [];
+    this.residuals = [];
   }
 
-  // 데이터 차분
+  // 데이터 차분 (I 성분)
   private difference(data: number[], order: number): number[] {
     if (order === 0) return [...data];
     let result = [...data];
+    
     for (let i = 0; i < order; i++) {
       const temp = [];
       for (let j = 1; j < result.length; j++) {
@@ -30,77 +39,189 @@ export class ArimaModel {
     return result;
   }
 
-  // 모델 학습 (간단한 가중평균 방식)
-  public fit(data: number[]) {
-    this.data = [...data];
+  // 자체 구현 최소제곱법 (Gauss-Seidel 반복법)
+  private solveLinearSystem(X: number[][], y: number[]): number[] {
+    const m = X.length;
+    const n = X[0]?.length || 0;
     
-    if (data.length === 0) {
-      this.weights = [1];
-      return;
+    if (m === 0 || n === 0) {
+      return new Array(n).fill(0);
     }
 
-    // 차분 적용
-    const processedData = this.difference(data, this.params.d);
-    
-    if (processedData.length <= this.params.p) {
-      // 데이터가 부족한 경우 균등 가중치
-      this.weights = new Array(Math.min(this.params.p, processedData.length)).fill(1);
-      const sum = this.weights.reduce((a, b) => a + b, 0);
-      this.weights = this.weights.map(w => w / sum);
-      return;
+    // 정규방정식 A = X^T * X; b = X^T * y
+    const A: number[][] = [];
+    const b: number[] = [];
+
+    // A = X^T * X 계산
+    for (let i = 0; i < n; i++) {
+      A[i] = new Array(n).fill(0);
+      for (let j = 0; j < n; j++) {
+        for (let k = 0; k < m; k++) {
+          A[i][j] += X[k][i] * X[k][j];
+        }
+      }
     }
 
-    // 간단한 지수 가중 평균 계수 계산
-    this.weights = [];
-    for (let i = 0; i < this.params.p; i++) {
-      // 최근 데이터에 더 높은 가중치
-      const weight = Math.exp(-0.1 * i);
-      this.weights.push(weight);
+    // b = X^T * y 계산
+    for (let i = 0; i < n; i++) {
+      b[i] = 0;
+      for (let k = 0; k < m; k++) {
+        b[i] += X[k][i] * y[k];
+      }
     }
-    
-    // 가중치 정규화
-    const totalWeight = this.weights.reduce((a, b) => a + b, 0);
-    if (totalWeight > 0) {
-      this.weights = this.weights.map(w => w / totalWeight);
-    } else {
-      this.weights = new Array(this.params.p).fill(1 / this.params.p);
+
+    // 수치 안정성을 위한 정규화 (Ridge regression)
+    for (let i = 0; i < n; i++) {
+      A[i][i] += 1e-6;
     }
+
+    // Gauss-Seidel 반복법으로 해결
+    let x = new Array(n).fill(0);
+    const maxIter = 100;
+    const tolerance = 1e-8;
+
+    for (let iter = 0; iter < maxIter; iter++) {
+      const oldX = [...x];
+      
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j < n; j++) {
+          if (i !== j) {
+            sum += A[i][j] * x[j];
+          }
+        }
+        
+        if (Math.abs(A[i][i]) > 1e-10) {
+          x[i] = (b[i] - sum) / A[i][i];
+        }
+      }
+
+      // 수렴 확인
+      let maxChange = 0;
+      for (let i = 0; i < n; i++) {
+        maxChange = Math.max(maxChange, Math.abs(x[i] - oldX[i]));
+      }
+      
+      if (maxChange < tolerance) break;
+    }
+
+    return x;
   }
 
-  // 예측
+  // 자기회귀(AR) 모델 학습
+  private fitAR(data: number[]): number[] {
+    if (data.length <= this.params.p) {
+      return new Array(this.params.p).fill(1 / this.params.p);
+    }
+
+    const X: number[][] = [];
+    const y: number[] = [];
+
+    // AR 설계행렬 생성
+    for (let i = this.params.p; i < data.length; i++) {
+      const row = [];
+      for (let j = 0; j < this.params.p; j++) {
+        row.push(data[i - j - 1]);
+      }
+      X.push(row);
+      y.push(data[i]);
+    }
+
+    return this.solveLinearSystem(X, y);
+  }
+
+  // 이동평균(MA) 모델 학습
+  private fitMA(residuals: number[]): number[] {
+    if (residuals.length <= this.params.q || this.params.q === 0) {
+      return new Array(this.params.q).fill(0);
+    }
+
+    const X: number[][] = [];
+    const y: number[] = [];
+
+    // MA 설계행렬 생성
+    for (let i = this.params.q; i < residuals.length; i++) {
+      const row = [];
+      for (let j = 0; j < this.params.q; j++) {
+        row.push(residuals[i - j - 1]);
+      }
+      X.push(row);
+      y.push(residuals[i]);
+    }
+
+    return this.solveLinearSystem(X, y);
+  }
+
+  // 잔차 계산
+  private calculateResiduals(data: number[], arCoefficients: number[]): number[] {
+    const residuals: number[] = [];
+    
+    for (let i = this.params.p; i < data.length; i++) {
+      let predicted = 0;
+      for (let j = 0; j < this.params.p; j++) {
+        predicted += arCoefficients[j] * data[i - j - 1];
+      }
+      residuals.push(data[i] - predicted);
+    }
+    
+    return residuals;
+  }
+
+  // 모델 학습
+  public fit(data: number[]): void {
+    this.data = [...data];
+    
+    if (data.length < this.params.p + this.params.d + 1) {
+      // 데이터가 부족한 경우 기본값 설정
+      this.arCoefficients = new Array(this.params.p).fill(1 / this.params.p);
+      this.maCoefficients = new Array(this.params.q).fill(0);
+      this.differenced = [...data];
+      this.residuals = [];
+      return;
+    }
+
+    // 1. 차분 적용
+    this.differenced = this.difference(data, this.params.d);
+
+    // 2. AR 모델 학습
+    this.arCoefficients = this.fitAR(this.differenced);
+
+    // 3. 잔차 계산
+    this.residuals = this.calculateResiduals(this.differenced, this.arCoefficients);
+
+    // 4. MA 모델 학습
+    this.maCoefficients = this.fitMA(this.residuals);
+  }
+
+  // ARIMA 예측
   public predict(steps: number): number[] {
     if (this.data.length === 0) {
       return new Array(steps).fill(0);
     }
 
-    // 차분된 데이터로 작업
-    const processedData = this.difference(this.data, this.params.d);
-    
-    if (processedData.length === 0) {
-      const lastValue = this.data[this.data.length - 1] || 0;
-      return new Array(steps).fill(lastValue);
-    }
-
     const predictions: number[] = [];
-    let recentValues = [...processedData.slice(-this.params.p)];
+    let currentData = [...this.differenced];
+    let currentResiduals = [...this.residuals];
 
-    // 데이터가 부족한 경우 0으로 패딩
-    while (recentValues.length < this.params.p) {
-      recentValues.unshift(0);
-    }
-
-    for (let i = 0; i < steps; i++) {
-      let prediction = 0;
-      
-      // 가중 평균으로 다음 값 예측
-      for (let j = 0; j < Math.min(this.weights.length, recentValues.length); j++) {
-        prediction += this.weights[j] * recentValues[recentValues.length - 1 - j];
+    for (let step = 0; step < steps; step++) {
+      // AR 성분 계산
+      let arPrediction = 0;
+      for (let i = 0; i < Math.min(this.params.p, currentData.length); i++) {
+        arPrediction += this.arCoefficients[i] * currentData[currentData.length - 1 - i];
       }
 
+      // MA 성분 계산
+      let maPrediction = 0;
+      for (let i = 0; i < Math.min(this.params.q, currentResiduals.length); i++) {
+        maPrediction += this.maCoefficients[i] * currentResiduals[currentResiduals.length - 1 - i];
+      }
+
+      const prediction = arPrediction + maPrediction;
       predictions.push(prediction);
-      
-      // 예측값을 다음 예측을 위한 데이터로 사용
-      recentValues = [...recentValues.slice(1), prediction];
+
+      // 다음 예측을 위한 데이터 업데이트
+      currentData.push(prediction);
+      currentResiduals.push(0); // 미래 잔차는 0으로 가정
     }
 
     // 차분을 되돌리는 과정
@@ -118,45 +239,56 @@ export class ArimaModel {
     return result;
   }
 
-  // 신뢰도 계산
+  // 신뢰도 계산 (ARIMA 모델 기반)
   public calculateConfidence(predictions: number[]): number[] {
-    const volatility = this.calculateVolatility();
+    const modelVariance = this.calculateModelVariance();
+    const baseConfidence = 90;
     
     return predictions.map((_, index) => {
-      // 예측 기간이 늘어날수록 신뢰도는 감소
-      const timeFactor = Math.exp(-0.15 * (index + 1));
-      const volatilityFactor = Math.max(0.3, 1 - volatility * 0.1);
-      const baseConfidence = 85; // 기본 신뢰도
+      // 시간이 지날수록 신뢰도 감소
+      const timeFactor = Math.exp(-0.1 * (index + 1));
       
-      return Math.max(30, Math.min(100, baseConfidence * timeFactor * volatilityFactor));
+      // 모델 분산 기반 신뢰도 조정
+      const varianceFactor = Math.max(0.4, 1 - modelVariance * 0.05);
+      
+      // AR, MA 차수에 따른 신뢰도 조정
+      const complexityFactor = Math.min(1, (this.params.p + this.params.q) * 0.1 + 0.7);
+      
+      const confidence = baseConfidence * timeFactor * varianceFactor * complexityFactor;
+      return Math.max(40, Math.min(100, confidence));
     });
   }
 
-  // 변동성 계산
-  private calculateVolatility(): number {
-    if (this.data.length < 2) return 0.1;
+  // 모델 분산 계산
+  private calculateModelVariance(): number {
+    if (this.residuals.length === 0) return 0.1;
     
-    const returns = [];
-    for (let i = 1; i < this.data.length; i++) {
-      if (this.data[i - 1] !== 0) {
-        returns.push((this.data[i] - this.data[i - 1]) / this.data[i - 1]);
-      }
-    }
-    
-    if (returns.length === 0) return 0.1;
-    
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - mean, 2), 0) / returns.length;
+    const mean = this.residuals.reduce((a, b) => a + b, 0) / this.residuals.length;
+    const variance = this.residuals.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / this.residuals.length;
     
     return Math.sqrt(variance);
   }
 
-  // 표준편차 계산 (하위 호환성)
-  private calculateStandardDeviation(data: number[]): number {
-    if (data.length === 0) return 1;
-    const mean = data.reduce((a, b) => a + b) / data.length;
-    const squaredDiffs = data.map(x => Math.pow(x - mean, 2));
-    const variance = squaredDiffs.reduce((a, b) => a + b) / data.length;
-    return Math.sqrt(variance);
+  // AIC (Akaike Information Criterion) 계산
+  public calculateAIC(): number {
+    if (this.residuals.length === 0) return Infinity;
+    
+    const n = this.residuals.length;
+    const k = this.params.p + this.params.q; // 모델 파라미터 수
+    const mse = this.residuals.reduce((sum, r) => sum + r * r, 0) / n;
+    
+    return n * Math.log(mse) + 2 * k;
+  }
+
+  // 모델 진단 정보
+  public getDiagnostics() {
+    return {
+      arCoefficients: this.arCoefficients,
+      maCoefficients: this.maCoefficients,
+      residualVariance: this.calculateModelVariance(),
+      aic: this.calculateAIC(),
+      dataPoints: this.data.length,
+      differenceOrder: this.params.d
+    };
   }
 } 
