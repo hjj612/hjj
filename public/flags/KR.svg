@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="600" viewBox="-36 -24 72 48" xmlns="http://www.w3.org/2000/svg">
+  <rect x="-36" y="-24" width="72" height="48" fill="#fff"/>
+  <g transform="rotate(-56.31)">
+    <g id="b2"><g id="b"><g id="a"><path d="M-6-25H6M-6-22H6M-6-19H6" stroke="#000"/></g><use xlink:href="#a" y="44"/></g><use xlink:href="#b" y="22"/></g>
+  </g>
+  <circle r="12" fill="#c60c30"/>
+  <path d="M0-12A12 12 0 0 1 0 12A12 12 0 0 0 0-12" fill="#003478"/>
+</svg> 
