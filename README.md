@@ -1,133 +1,187 @@
-# 🌏 한국 환율 챗봇 (Korea Forex Chatbot)
+# 🚀 한국 환율 예측봇 (Korea Forex Prediction Bot)
 
-실시간 환율 정보와 AI 기반 환율 예측을 제공하는 Next.js 웹 애플리케이션입니다.
+> **실시간 환율 조회, AI 기반 예측, 전문적인 기술적 분석을 제공하는 Next.js 웹 애플리케이션**
 
-## ✨ 주요 기능
+[![Next.js](https://img.shields.io/badge/Next.js-15.3.2-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18.0.0-blue?style=flat-square&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-green?style=flat-square&logo=supabase)](https://supabase.com/)
 
-- 📊 실시간 환율 정보 (JPY, CNY, EUR)
-- 🤖 AI 기반 환율 예측
-- 📱 반응형 웹 디자인
-- 🔄 다중 API 소스로 정확도 향상
-- 📈 과거 환율 데이터 시각화
+## 📱 주요 기능
 
-## 🚀 빠른 시작
+### ✨ 실시간 환율 서비스
+- **4개 주요 통화** 실시간 모니터링: USD, JPY, EUR, CNY
+- **JPY 100엔 기준** 환율 표시 (한국 실정에 맞춘 표기)
+- 히트맵 시각화로 환율 변동 한눈에 파악
+- TradingView 위젯 연동
 
-### 로컬 개발 환경 설정
+### 🔮 AI 환율 예측
+- **7일간 환율 예측** 및 신뢰도 표시
+- ARIMA, LSTM, Linear Regression 앙상블 모델
+- 일별 예측값과 정확도 퍼센트 제공
+- 종합적인 AI 분석 의견
 
-1. **저장소 클론**
+### 📊 전문적인 기술적 분석
+- **RSI (Relative Strength Index)** - 과매수/과매도 판단
+- **볼린저 밴드** - 가격 변동성 및 지지/저항선
+- **이동평균선** - MA20, MA50, MA100 추세 분석
+- 실시간 차트 및 기술적 지표 시각화
+
+### 🎨 사용자 경험
+- **전문적인 회색 톤** 디자인
+- **완전 반응형** 모바일/데스크톱 지원
+- 직관적인 탭 기반 네비게이션
+- 실시간 데이터 업데이트
+
+## 🛠️ 기술 스택
+
+### Frontend
+- **Next.js 15** - App Router 기반 풀스택 프레임워크
+- **React 18** - 컴포넌트 기반 UI 라이브러리
+- **TypeScript** - 타입 안전성 확보
+- **Tailwind CSS** - 유틸리티 퍼스트 CSS 프레임워크
+
+### Data & Visualization
+- **Recharts** - React 차트 라이브러리
+- **Supabase** - 실시간 데이터베이스
+- **TradingView Widgets** - 전문 금융 위젯
+
+### External APIs
+- **Alpha Vantage API** - 실시간 환율 데이터
+- **CurrencyLayer API** - 보조 환율 소스
+- **한국은행 API** - 공식 환율 데이터
+
+## 🚀 설치 및 실행
+
+### 1. 저장소 클론
 ```bash
-git clone https://github.com/your-username/korea-forex-chatbot.git
-cd korea-forex-chatbot
+git clone https://github.com/hjj612/hjj.git
+cd hjj
 ```
 
-2. **의존성 설치**
+### 2. 의존성 설치
 ```bash
 npm install
 ```
 
-3. **환경 변수 설정**
-프로젝트 루트에 `.env.local` 파일 생성:
-```bash
-# Supabase 설정 (필수)
+### 3. 환경 변수 설정
+`.env.local` 파일을 생성하고 다음 내용을 추가:
+
+```env
+# Supabase 설정
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# API 키들 (선택적 - 더 높은 정확도를 위해 권장)
-ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
-CURRENCY_LAYER_API_KEY=your_currency_layer_api_key
-FIXER_API_KEY=your_fixer_api_key
-BOK_API_KEY=your_bok_api_key
+# 외환 API 키 (선택사항)
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
+CURRENCYLAYER_API_KEY=your_currencylayer_key
 ```
 
-4. **개발 서버 실행**
+### 4. 데이터베이스 설정
+Supabase에서 다음 테이블을 생성:
+
+```sql
+CREATE TABLE forex_rates (
+  id SERIAL PRIMARY KEY,
+  currency_code VARCHAR(3) NOT NULL,
+  rate DECIMAL(10, 4) NOT NULL,
+  timestamp TIMESTAMPTZ DEFAULT NOW(),
+  source VARCHAR(50),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_forex_currency ON forex_rates(currency_code);
+CREATE INDEX idx_forex_timestamp ON forex_rates(timestamp);
+```
+
+### 5. 개발 서버 실행
 ```bash
 npm run dev
 ```
 
-브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
+브라우저에서 `http://localhost:3000` 접속
 
-## 🌐 Vercel 배포 가이드
+## 📦 프로덕션 배포
 
-### 1단계: GitHub에 업로드
+### Vercel 배포 (권장)
+1. [Vercel](https://vercel.com)에 가입
+2. GitHub 저장소 연동
+3. 환경 변수 설정
+4. 자동 배포 완료
 
-1. GitHub에서 새 저장소 생성
-2. 로컬 프로젝트와 연결:
+### 수동 빌드
 ```bash
-git init
-git add .
-git commit -m "Initial commit: Korea Forex Chatbot"
-git branch -M main
-git remote add origin https://github.com/your-username/korea-forex-chatbot.git
-git push -u origin main
+npm run build
+npm start
 ```
 
-### 2단계: Vercel 배포
-
-1. [Vercel](https://vercel.com/)에 로그인
-2. "New Project" 클릭
-3. GitHub 저장소 선택
-4. 환경 변수 설정:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - 기타 API 키들 (선택적)
-5. "Deploy" 클릭
-
-### 3단계: 도메인 설정 (선택적)
-
-Vercel 대시보드에서 커스텀 도메인을 설정할 수 있습니다.
-
-## 🔧 기술 스택
-
-- **Frontend**: Next.js 15, React 18, TypeScript
-- **UI**: Tailwind CSS, shadcn/ui
-- **Database**: Supabase
-- **차트**: Chart.js, Recharts
-- **배포**: Vercel
-- **API**: 다중 환율 API (Alpha Vantage, CurrencyLayer, Fixer, 한국은행)
-
-## 📁 프로젝트 구조
+## 📖 프로젝트 구조
 
 ```
-korea-forex-chatbot/
+hjj/
 ├── app/                    # Next.js App Router
-├── components/             # React 컴포넌트
-├── utils/                  # 유틸리티 함수
-├── public/                 # 정적 파일
-├── supabase/              # Supabase 설정
-├── .env.local             # 환경 변수 (로컬)
-├── package.json           # 프로젝트 설정
-└── README.md              # 프로젝트 문서
+│   ├── api/               # API 라우트
+│   ├── components/        # 페이지별 컴포넌트
+│   ├── currency/[code]/   # 통화별 상세 페이지
+│   ├── globals.css        # 전역 스타일
+│   ├── layout.tsx         # 루트 레이아웃
+│   └── page.tsx          # 메인 페이지
+├── components/            # 재사용 가능한 컴포넌트
+│   ├── ForexPredictionBot.tsx
+│   ├── ForexChatbot.tsx
+│   ├── ForexHeatmap.tsx
+│   └── tradingview/
+├── utils/                 # 유틸리티 함수
+│   ├── supabase.ts       # Supabase 클라이언트
+│   ├── arimaModel.ts     # ARIMA 모델
+│   └── seed-forex-data.js
+├── public/               # 정적 파일
+└── supabase/            # DB 마이그레이션
 ```
 
-## 🔑 환경 변수 설명
+## 🔧 API 엔드포인트
 
-자세한 환경 변수 설정은 [env-setup.md](./env-setup.md)를 참조하세요.
+- `GET /api/fetch-real-forex` - 실시간 환율 데이터 수집
+- `GET /api/fetch-ohlc-forex` - OHLC 캔들스틱 데이터
+- 통화별 페이지: `/currency/[code]` (USD, JPY, EUR, CNY)
 
-| 변수명 | 설명 | 필수 여부 |
-|--------|------|----------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL | 필수 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 익명 키 | 필수 |
-| `ALPHA_VANTAGE_API_KEY` | Alpha Vantage API 키 | 선택적 |
-| `CURRENCY_LAYER_API_KEY` | CurrencyLayer API 키 | 선택적 |
-| `FIXER_API_KEY` | Fixer API 키 | 선택적 |
-| `BOK_API_KEY` | 한국은행 API 키 | 선택적 |
+## 🎯 라이브 데모
+
+**🌐 배포된 사이트**: [https://hjj-gilt.vercel.app](https://hjj-gilt.vercel.app)
+
+### 📸 스크린샷
+- 메인 페이지: 실시간 환율 대시보드
+- 통화별 상세: 예측 및 기술적 분석
+- 모바일 반응형: 모든 기기에서 최적화
 
 ## 🤝 기여하기
 
 1. Fork 프로젝트
-2. 피처 브랜치 생성 (`git checkout -b feature/AmazingFeature`)
+2. Feature 브랜치 생성 (`git checkout -b feature/AmazingFeature`)
 3. 변경사항 커밋 (`git commit -m 'Add some AmazingFeature'`)
 4. 브랜치에 Push (`git push origin feature/AmazingFeature`)
 5. Pull Request 생성
 
-## 📄 라이선스
+## 📝 라이센스
 
-이 프로젝트는 MIT 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+이 프로젝트는 MIT 라이센스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+
+## 💫 향후 계획
+
+- [ ] 알림 시스템 추가
+- [ ] 더 많은 통화 쌍 지원
+- [ ] 고급 차트 기능
+- [ ] 모바일 앱 버전
+- [ ] 다국어 지원
 
 ## 📞 문의
 
-프로젝트에 대한 질문이나 제안이 있으시면 이슈를 생성해주세요.
+- **작성자**: hjj612
+- **이메일**: hjj612@example.com
+- **프로젝트 링크**: [https://github.com/hjj612/hjj](https://github.com/hjj612/hjj)
 
 ---
 
-⭐ 이 프로젝트가 도움이 되었다면 별표를 눌러주세요! 
+⭐ **이 프로젝트가 유용하다면 Star를 눌러주세요!** 
