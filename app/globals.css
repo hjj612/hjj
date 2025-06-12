@@ -62,6 +62,8 @@ iframe::-webkit-scrollbar,
 html {
   overflow-x: hidden !important;
   overflow-y: auto !important;
+  /* 모바일 안전 영역 지원 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 body {
@@ -72,6 +74,40 @@ body {
   color: rgb(var(--foreground-rgb));
   background: #f5f5f5;
   -webkit-overflow-scrolling: touch;
+  /* 모바일 터치 최적화 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* 모바일 폰트 크기 조정 방지 */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 텍스트와 입력 요소는 선택 가능하게 */
+input, textarea, [contenteditable], p, span, div[role="textbox"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 모바일 터치 대상 크기 최적화 */
+button, input[type="button"], input[type="submit"], a, [role="button"] {
+  min-height: 44px; /* iOS 권장 최소 터치 대상 크기 */
+  min-width: 44px;
+  touch-action: manipulation; /* 더블탭 줌 방지 */
+}
+
+/* 모바일 입력 필드 스타일링 */
+input, textarea, select {
+  font-size: 16px; /* iOS 줌 방지를 위한 최소 폰트 크기 */
+  border-radius: 0; /* iOS 기본 스타일 제거 */
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 @keyframes scroll {
@@ -135,7 +171,7 @@ header {
   display: none !important;
 }
 
-/* 애니메이션 */
+/* 모바일 최적화 애니메이션 */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -147,4 +183,45 @@ header {
 
 .animate-pulse {
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 모바일 스크롤 개선 */
+@media (max-width: 768px) {
+  body {
+    overscroll-behavior: none; /* 바운스 스크롤 방지 */
+  }
+  
+  /* 모바일에서 호버 효과 제거 */
+  .hover\:scale-105:hover {
+    transform: none;
+  }
+  
+  .hover\:bg-blue-50:hover {
+    background-color: transparent;
+  }
+  
+  /* 모바일에서 터치 시 효과 */
+  .hover\:bg-blue-50:active {
+    background-color: rgb(239 246 255);
+  }
+  
+  .hover\:scale-105:active {
+    transform: scale(0.98);
+  }
+}
+
+/* 모바일 안전 영역 패딩 */
+@supports (padding: max(0px)) {
+  .safe-area-padding {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* 고해상도 디스플레이 최적화 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 } 

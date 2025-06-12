@@ -1,11 +1,7 @@
 import { Suspense } from 'react';
-import ForexRates from '../components/ForexRates';
-import ForexPredictions from '../components/ForexPredictions';
 import TickerTapeWidget from '../components/TickerTapeWidget';
 import ForexHeatmap from '../components/ForexHeatmap';
-import ForexChatbot from './components/ForexChatbot';
-import ForexCharts from '../components/ForexCharts';
-import ForexReliabilityIndicator from '../components/ForexReliabilityIndicator';
+import ForexChatbot from '../components/ForexChatbot';
 import Link from 'next/link';
 
 export default function Home() {
@@ -14,20 +10,15 @@ export default function Home() {
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-[1920px] mx-auto">
           <div className="flex items-center h-16 px-4">
-            <div className="flex items-center text-lg">
+            <div className="flex items-center text-sm sm:text-lg overflow-hidden">
               <span className="text-[#666666] font-medium">groqlabs</span>
-              <span className="text-[#666666] mx-2">/</span>
-              <span className="text-black font-medium">Korea Forex Bot</span>
-              <span className="text-[#666666] mx-2">/</span>
-              <Link 
-                href="/charts" 
-                className="text-[#ff4b4b] hover:text-[#ff6b6b] transition-colors mr-4"
-              >
-                환율 차트
-              </Link>
+              <span className="text-[#666666] mx-1 sm:mx-2">/</span>
+              <span className="text-black font-medium truncate">Korea Forex Bot</span>
+              <span className="text-[#666666] mx-1 sm:mx-2 hidden sm:inline">/</span>
+
               <Link 
                 href="#" 
-                className="text-[#ff4b4b] hover:text-[#ff6b6b] transition-colors"
+                className="text-[#ff4b4b] hover:text-[#ff6b6b] transition-colors hidden sm:inline"
               >
                 Start New Chat
               </Link>
@@ -39,39 +30,21 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex-1 py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7">
-              <div className="mt-[60px] ml-[-60px] transform hover:scale-[1.02] transition-transform duration-300">
-                <div className="rounded-2xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.2)] bg-white/90 backdrop-blur-sm border border-blue-100/50">
+      <div className="flex-1 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
+          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-8">
+            <div className="lg:col-span-7 order-1 lg:order-1">
+              <div className="sm:mt-[60px] sm:ml-[-60px] transform hover:scale-[1.02] transition-transform duration-300">
+                <div className="rounded-xl sm:rounded-2xl shadow-lg sm:shadow-[0_20px_50px_rgba(8,_112,_184,_0.2)] bg-white/90 backdrop-blur-sm border border-blue-100/50">
                   <ForexChatbot />
                 </div>
               </div>
             </div>
-            <div className="lg:col-span-5">
-              <div className="w-full h-[400px] overflow-hidden ml-[60px] mt-[60px] transform hover:scale-[1.02] transition-transform duration-300">
-                <div className="rounded-2xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.2)] bg-white/90 backdrop-blur-sm border border-blue-100/50">
+            <div className="lg:col-span-5 order-2 lg:order-2">
+              <div className="w-full h-[350px] sm:h-[400px] overflow-hidden sm:ml-[60px] sm:mt-[60px] transform hover:scale-[1.02] transition-transform duration-300">
+                <div className="rounded-xl sm:rounded-2xl shadow-lg sm:shadow-[0_20px_50px_rgba(8,_112,_184,_0.2)] bg-white/90 backdrop-blur-sm border border-blue-100/50">
                   <ForexHeatmap />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 신뢰도 향상 시스템 소개 */}
-          <div className="mt-16 mb-8">
-            <ForexReliabilityIndicator />
-          </div>
-
-          {/* 환율 차트 섹션 */}
-          <div className="mt-16">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">주요 환율 동향</h2>
-              <p className="text-gray-600">실시간 환율 변동을 한눈에 확인하세요</p>
-            </div>
-            <div className="transform hover:scale-[1.01] transition-transform duration-300">
-              <div className="rounded-2xl shadow-[0_10px_30px_rgba(8,_112,_184,_0.1)] bg-white/95 backdrop-blur-sm border border-blue-50 p-6">
-                <ForexCharts />
               </div>
             </div>
           </div>

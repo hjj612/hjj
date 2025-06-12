@@ -4,6 +4,9 @@ import { getForexData } from '@/utils/supabase';
 
 const CURRENCIES = ['USD', 'JPY', 'CNY', 'EUR'];
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+const CURRENCY_LAYER_API_KEY = process.env.CURRENCY_LAYER_API_KEY;
+const FIXER_API_KEY = process.env.FIXER_API_KEY;
+const BOK_API_KEY = process.env.BOK_API_KEY;
 
 async function fetchCurrentRate(fromCurrency: string) {
   try {

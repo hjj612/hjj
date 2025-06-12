@@ -22,6 +22,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "lightweight-charts": "^5.0.7",
+    "lodash": "^4.17.21",
     "ml-matrix": "^6.11.0",
     "next": "^15.3.2",
     "python-shell": "^5.0.0",

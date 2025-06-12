@@ -183,10 +183,17 @@ export async function GET(request: Request) {
           const exchangeData = data['Realtime Currency Exchange Rate'];
           
           if (exchangeData) {
-            const currentRate = parseFloat(exchangeData['5. Exchange Rate']);
+            let currentRate = parseFloat(exchangeData['5. Exchange Rate']);
+            
+            // JPY는 1엔 기준 데이터를 100엔 기준으로 변환하여 저장
+            if (currency === 'JPY') {
+              currentRate = currentRate * 100;
+              console.log(`🔄 JPY 환율 변환: 1엔 기준 → 100엔 기준 (${currentRate}원/100엔)`);
+            }
+            
             const lastRefreshed = new Date(exchangeData['6. Last Refreshed']).toISOString();
             
-            console.log(`🎯 Alpha Vantage ${currency}/KRW 실시간 환율: ${currentRate}원`);
+            console.log(`🎯 Alpha Vantage ${currency}/KRW 실시간 환율: ${currentRate}${currency === 'JPY' ? '원/100엔' : '원'}`);
             console.log(`⏰ 실제 실시간 업데이트 시간: ${lastRefreshed}`);
 
             await saveForexData({
@@ -235,10 +242,17 @@ export async function GET(request: Request) {
         const data = await response.json();
         
         if (data.success && data.quotes && data.quotes[`${currency}KRW`]) {
-          const currentRate = parseFloat(data.quotes[`${currency}KRW`].toFixed(2));
+          let currentRate = parseFloat(data.quotes[`${currency}KRW`].toFixed(2));
+          
+          // JPY는 1엔 기준 데이터를 100엔 기준으로 변환하여 저장
+          if (currency === 'JPY') {
+            currentRate = currentRate * 100;
+            console.log(`🔄 JPY 환율 변환: 1엔 기준 → 100엔 기준 (${currentRate}원/100엔)`);
+          }
+          
           const lastRefreshed = new Date(data.timestamp * 1000).toISOString();
           
-          console.log(`🛡️ CurrencyLayer ${currency}/KRW 백업 환율: ${currentRate}원`);
+          console.log(`🛡️ CurrencyLayer ${currency}/KRW 백업 환율: ${currentRate}${currency === 'JPY' ? '원/100엔' : '원'}`);
           console.log(`⚠️ 주의: 실시간 Alpha Vantage API 실패로 백업 사용 중`);
 
           await saveForexData({
@@ -282,14 +296,12 @@ export async function GET(request: Request) {
         if (data.StatisticSearch && data.StatisticSearch.row && data.StatisticSearch.row.length > 0) {
           let currentRate = parseFloat(data.StatisticSearch.row[0].DATA_VALUE);
           
-          // JPY는 100엔 기준이므로 1엔 기준으로 변환
-          if (currency === 'JPY') {
-            currentRate = currentRate / 100;
-          }
+          // JPY는 한국은행에서 100엔 기준으로 제공되므로 그대로 사용
+          // (다른 API들과 달리 이미 100엔 기준)
           
           const lastRefreshed = new Date().toISOString();
           
-          console.log(`🏛️ 한국은행 ${currency}/KRW 기준환율: ${currentRate}원`);
+          console.log(`🏛️ 한국은행 ${currency}/KRW 기준환율: ${currentRate}${currency === 'JPY' ? '원/100엔' : '원'}`);
           console.log(`⚠️ 주의: 모든 실시간 API 실패로 공식 기준환율 사용`);
 
           await saveForexData({

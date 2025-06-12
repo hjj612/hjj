@@ -1,99 +1,67 @@
-# Dependencies
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# local env files
+.env*.local
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-# Next.js
-.next/
-out/
-build/
-dist/
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
 # Python
-venv/
-.venv/
-__pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
+__pycache__/
+venv/
 env/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.pytest_cache
-htmlcov/
-*.egg-info/
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# 압축 파일
+*.zip
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-.cursor/
+# 임시 파일
+*.tmp
+*.temp
 
-# Logs
-logs
+# 로그 파일
 *.log
 
-# Temporary files
-tmp/
-temp/
+# 에디터 설정
+.vscode/
+.cursor/
 
-# Lock files
-package-lock.json
-yarn.lock
+# OS 생성 파일
+Thumbs.db
+Desktop.ini
 
-# Supabase
-.supabase/
-
-# Miscellaneous
-*.tgz
-*.tar.gz
-
-# Nested project folders (duplicates)
+# 기타 불필요한 폴더
+fixed_forex_files/
 korea-forex-master/
-cursor/
 flux-app/
-
-# Compiled Python files
-*.pyd
-*.so
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-
-# Documentation
-docs/_build/ 
+cursor/ 

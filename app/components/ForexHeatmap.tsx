@@ -98,7 +98,7 @@ const ForexHeatmap: React.FC = () => {
       'USD/JPY': 147.33,
       'USD/CNY': 7.14,
       'USD/EUR': 0.92,
-      'JPY/KRW': 9.03,
+      'JPY/KRW': 903, // 100엔당 원화값
       'JPY/USD': 0.0068,
       'JPY/CNY': 0.048,
       'JPY/EUR': 0.0062,

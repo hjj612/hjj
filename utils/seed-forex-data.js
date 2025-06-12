@@ -13,7 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 통화별 기본 환율 (2024년 5월 23일 기준 실제 환율)
 const baseRates = {
-  JPY: 9.02,      // 100 JPY = 902 KRW -> 1 JPY = 9.02 KRW
+  JPY: 902,       // 100 JPY = 902 KRW (100엔당 원화값으로 표시)
   CNY: 188.45,    // 1 CNY = 188.45 KRW
   EUR: 1485.67    // 1 EUR = 1485.67 KRW
 };

@@ -171,7 +171,7 @@ const TradingViewTickerTape: React.FC = () => {
         <div className="flex items-center text-gray-500 text-sm">
           <span className="mr-2">📈</span>
           <span>환율 정보</span>
-          <span className="ml-4 text-xs">USD: 1,330원 | EUR: 1,451원 | JPY: 9.03원 | CNY: 186원</span>
+          <span className="ml-4 text-xs">USD: 1,330원 | EUR: 1,451원 | JPY: 903원/100엔 | CNY: 186원</span>
         </div>
       </div>
     );

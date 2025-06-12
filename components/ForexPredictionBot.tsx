@@ -60,7 +60,7 @@ export default function ForexPredictionBot() {
 
   const generateMockPrediction = (currency: string): PredictionData => {
     const predictions: CurrencyPrediction[] = [];
-    const baseValue = currency === 'JPY' ? 100 : currency === 'EUR' ? 0.8 : 1300;
+    const baseValue = currency === 'JPY' ? 900 : currency === 'EUR' ? 1450 : 1300; // JPY는 100엔당 900원 기준
     
     for (let i = 0; i < 7; i++) {
       predictions.push({
@@ -79,7 +79,13 @@ export default function ForexPredictionBot() {
 
   const getChartData = (predictionData: PredictionData) => {
     return {
-      labels: predictionData.predictions.map(p => p.date),
+      labels: predictionData.predictions.map(p => {
+        const date = new Date(p.date);
+        return date.toLocaleDateString('ko-KR', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      }),
       datasets: [
         {
           label: `${predictionData.currency}/KRW 예측`,

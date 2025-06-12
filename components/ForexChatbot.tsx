@@ -126,35 +126,35 @@ export default function ForexChatbot() {
   };
 
   return (
-    <div className="flex flex-col h-[700px] bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-      <div className="bg-white text-black p-4 border-b border-gray-200">
-        <h2 className="text-xl font-bold">환율 예측 챗봇</h2>
-        <p className="text-sm text-gray-600">USD, JPY, CNY, EUR의 환율 정보를 알려드립니다.</p>
+    <div className="flex flex-col h-[450px] sm:h-[500px] bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+      <div className="bg-white text-black p-3 sm:p-4 border-b border-gray-200">
+        <h2 className="text-lg sm:text-xl font-bold">환율 예측 챗봇</h2>
+        <p className="text-xs sm:text-sm text-gray-600">USD, JPY, CNY, EUR의 환율 정보를 알려드립니다.</p>
       </div>
       
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 bg-blue-50 rounded-lg m-4 text-gray-700">
-          <p className="font-medium mb-2">안녕하세요! 환율 예측 챗봇입니다.</p>
-          <p className="text-sm">USD, JPY, CNY, EUR 중 어떤 통화의 환율을 알고 싶으신가요? 아래 환율 블록을 클릭하면 상세 분석을 볼 수 있습니다.</p>
+        <div className="p-3 sm:p-4 bg-blue-50 rounded-lg m-3 sm:m-4 text-gray-700">
+          <p className="font-medium mb-2 text-sm sm:text-base">안녕하세요! 환율 예측 챗봇입니다.</p>
+          <p className="text-xs sm:text-sm">USD, JPY, CNY, EUR 중 어떤 통화의 환율을 알고 싶으신가요? 아래 환율 블록을 클릭하면 상세 분석을 볼 수 있습니다.</p>
         </div>
       
-        <div className="p-4 mt-10">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">환율 정보 바로가기</h3>
-          <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">환율 정보 바로가기</h3>
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
             {exampleQuestions.map((example, index) => (
               <div
                 key={index}
-                className="cursor-pointer border rounded-lg p-4 hover:bg-blue-50 transition-colors flex flex-col relative group"
+                className="cursor-pointer border rounded-lg p-2 sm:p-4 hover:bg-blue-50 transition-colors flex flex-col relative group min-h-[60px] sm:min-h-[80px]"
                 onClick={() => handleCurrencyBlockClick(example.currencyCode)}
               >
-                <div className="font-semibold text-gray-900 flex items-center">
+                <div className="font-semibold text-gray-900 flex items-center text-xs sm:text-sm">
                   {example.heading}
-                  <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">상세보기</span>
+                  <span className="ml-1 text-[10px] sm:text-xs bg-blue-100 text-blue-800 px-1 sm:px-1.5 py-0.5 rounded">상세보기</span>
                 </div>
-                <div className="text-sm text-gray-600">{example.subheading}</div>
+                <div className="text-[10px] sm:text-sm text-gray-600">{example.subheading}</div>
                 
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs whitespace-nowrap shadow-md">
+                  <div className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs whitespace-nowrap shadow-md">
                     클릭하여 상세 분석 보기
                   </div>
                 </div>
@@ -164,22 +164,22 @@ export default function ForexChatbot() {
         </div>
 
         {messages.length > 0 ? (
-          <div className="space-y-4 p-4">
+          <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
+                  className={`max-w-[85%] sm:max-w-[70%] rounded-lg p-2 sm:p-3 ${
                     message.sender === 'user'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  <p className="whitespace-pre-line">{message.text}</p>
+                  <p className="whitespace-pre-line text-sm sm:text-base">{message.text}</p>
                   {mounted ? (
-                    <p className="text-xs mt-1 opacity-70">
+                    <p className="text-[10px] sm:text-xs mt-1 opacity-70">
                       {formatTime(message.timestamp)}
                     </p>
                   ) : null}
@@ -188,8 +188,8 @@ export default function ForexChatbot() {
             ))}
             {isLoading ? (
               <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <div className="animate-pulse">입력 중...</div>
+                <div className="bg-gray-100 rounded-lg p-2 sm:p-3">
+                  <div className="animate-pulse text-sm sm:text-base">입력 중...</div>
                 </div>
               </div>
             ) : null}
@@ -197,22 +197,23 @@ export default function ForexChatbot() {
         ) : null}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
-        <div className="flex space-x-2">
+      {/* 입력 폼 - 모바일에서 더 사용하기 편하게 */}
+      <form onSubmit={handleSubmit} className="p-3 sm:p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="메시지를 입력하세요... (예: USD 환율 알려줘)"
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="환율에 대해 궁금한 것을 물어보세요..."
+            className="flex-1 p-2 sm:p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             disabled={isLoading}
           />
           <button
             type="submit"
-            disabled={isLoading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+            disabled={isLoading || !input.trim()}
+            className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm sm:text-base min-w-[60px] sm:min-w-[80px]"
           >
-            전송
+            {isLoading ? '전송중...' : '전송'}
           </button>
         </div>
       </form>
