@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const currency = searchParams.get('currency') || 'USD';
 
   try {
+    console.log('1. API 라우트 진입');
     console.log(`🔄 ${currency} 마켓 실시간 환율 가져오기 시작...`);
     
     // 1차: CurrencyLayer API (실시간성이 높음)

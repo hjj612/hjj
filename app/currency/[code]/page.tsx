@@ -275,6 +275,7 @@ interface StatIndicators {
             <Tooltip 
               formatter={(value, name) => {
                 if (name === 'rate') return [`${Number(value).toFixed(2)}${currencyCode === 'JPY' ? '원/100엔' : '원'}`, '20일 이동평균'];
+                if (name === 'predicted_rate') return [`${Number(value).toFixed(1)}${currencyCode === 'JPY' ? '원/100엔' : '원'}`, name];
                 return [`${Number(value).toFixed(2)}${currencyCode === 'JPY' ? '원/100엔' : '원'}`, name];
               }}
               labelFormatter={(label) => `날짜: ${label}`}
@@ -286,24 +287,24 @@ interface StatIndicators {
               }}
             />
             
-            {/* 실제 환율 선 (히스토리컬 데이터) */}
+            {/* 실제 환율 선 (히스토리컬 데이터) - 초록색으로 변경 */}
             <Line 
               type="monotone" 
               dataKey="close" 
-              stroke="#4b5563" 
+              stroke="#22c55e" 
               strokeWidth={3} 
-              dot={{ r: 3, fill: '#4b5563' }}
+              dot={{ r: 3, fill: '#22c55e' }}
               name="실제 환율"
               connectNulls={false}
             />
             
-            {/* 예측 환율 선 (더 뚜렷한 파란색) */}
+            {/* 예측 환율 선 - 파란색으로 변경 */}
             <Line 
               type="monotone" 
               dataKey="predicted_rate" 
-              stroke="#374151" 
+              stroke="#3b82f6" 
               strokeWidth={4} 
-              dot={{ r: 5, fill: '#374151', stroke: '#ffffff', strokeWidth: 2 }}
+              dot={{ r: 5, fill: '#3b82f6', stroke: '#ffffff', strokeWidth: 2 }}
               strokeDasharray="8 4"
               name="예측 환율"
               connectNulls={false}
@@ -327,11 +328,11 @@ interface StatIndicators {
       {/* 범례 - 차트 아래로 이동 */}
       <div className="flex items-center justify-center gap-4 -mt-8 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-1 bg-gray-600"></div>
+          <div className="w-3 h-1 bg-green-500"></div>
           <span>실제 환율</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-1 bg-gray-800" style={{borderStyle: 'dashed', borderWidth: '2px'}}></div>
+          <div className="w-3 h-1 bg-blue-500" style={{borderStyle: 'dashed', borderWidth: '2px'}}></div>
           <span>예측 환율</span>
         </div>
         <div className="flex items-center gap-1">
@@ -649,8 +650,8 @@ export default function CurrencyDetailPage() {
                                 </div>
                               </td>
                               <td className="py-2 px-3">
-                                <div className="text-sm font-bold text-gray-800">
-                                  {Math.round(day.predicted_rate).toLocaleString()}
+                                <div className="text-sm font-bold text-blue-600">
+                                  {day.predicted_rate.toFixed(1).toLocaleString()}
                                   <span className="text-xs text-gray-500 ml-1">
                                     {currencyCode === 'JPY' ? '/100엔' : '원'}
                                   </span>

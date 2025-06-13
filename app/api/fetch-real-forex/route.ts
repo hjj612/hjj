@@ -7,6 +7,7 @@ export async function GET(request: Request) {
 
   try {
     console.log(`🔄 ${currency} Alpha Vantage 실시간 환율 가져오기 시작...`);
+    console.log('🔑 API 키 확인:', process.env.ALPHA_VANTAGE_API_KEY ? '존재함' : '없음');
     
     // Alpha Vantage API만 사용 (진정한 실시간 데이터)
     try {
@@ -58,32 +59,50 @@ export async function GET(request: Request) {
                 console.log(`⏰ 실제 실시간 업데이트 시간: ${lastRefreshed}`);
                 console.log(`🧮 실시간 크로스 계산: ${eurUsdRate} × ${usdKrwRate} = ${currentRate}`);
 
-                await saveForexData({
-                  currency: currency,
-                  rate: currentRate,
-                  timestamp: lastRefreshed
-                });
+                console.log('💾 Supabase에 EUR 환율 데이터 저장 시도...');
+                try {
+                  const savedData = await saveForexData({
+                    currency: currency,
+                    rate: currentRate,
+                    timestamp: lastRefreshed
+                  });
+                  console.log('✅ EUR 환율 데이터 저장 성공:', savedData);
+                } catch (saveError) {
+                  console.error('❌ EUR 환율 데이터 저장 실패:', saveError);
+                  throw saveError;
+                }
 
-                const storedData = await getForexData(currency, 5);
+                console.log('📥 저장된 EUR 환율 데이터 조회 중...');
+                try {
+                  const storedData = await getForexData(currency, 5);
+                  console.log('✅ 저장된 EUR 환율 데이터:', storedData);
 
-                return NextResponse.json({
-                  success: true,
-                  message: `${currency} Alpha Vantage 실시간 환율 업데이트 완료`,
-                  api_source: 'Alpha Vantage (Real-time Cross Rate)',
-                  current_rate: currentRate,
-                  last_refreshed: lastRefreshed,
-                  stored_data_count: storedData.length,
-                  recent_rates: storedData.slice(0, 3).map(d => ({
-                    rate: d.rate,
-                    timestamp: d.timestamp
-                  })),
-                  real_time_calculation: {
-                    eur_usd: { rate: eurUsdRate, timestamp: eurUsdTimestamp },
-                    usd_krw: { rate: usdKrwRate, timestamp: usdKrwTimestamp },
-                    formula: `${eurUsdRate} × ${usdKrwRate} = ${currentRate}`,
-                    data_source: 'Alpha Vantage Real-time'
+                  if (!storedData || storedData.length === 0) {
+                    throw new Error('저장된 EUR 환율 데이터를 찾을 수 없습니다.');
                   }
-                });
+
+                  return NextResponse.json({
+                    success: true,
+                    message: `${currency} Alpha Vantage 실시간 환율 업데이트 완료`,
+                    api_source: 'Alpha Vantage (Real-time Cross Rate)',
+                    current_rate: currentRate,
+                    last_refreshed: lastRefreshed,
+                    stored_data_count: storedData.length,
+                    recent_rates: storedData.slice(0, 3).map(d => ({
+                      rate: d.rate,
+                      timestamp: d.timestamp
+                    })),
+                    real_time_calculation: {
+                      eur_usd: { rate: eurUsdRate, timestamp: eurUsdTimestamp },
+                      usd_krw: { rate: usdKrwRate, timestamp: usdKrwTimestamp },
+                      formula: `${eurUsdRate} × ${usdKrwRate} = ${currentRate}`,
+                      data_source: 'Alpha Vantage Real-time'
+                    }
+                  });
+                } catch (retrieveError) {
+                  console.error('❌ EUR 환율 데이터 조회 실패:', retrieveError);
+                  throw retrieveError;
+                }
               }
             }
           }
@@ -196,37 +215,52 @@ export async function GET(request: Request) {
             console.log(`🎯 Alpha Vantage ${currency}/KRW 실시간 환율: ${currentRate}${currency === 'JPY' ? '원/100엔' : '원'}`);
             console.log(`⏰ 실제 실시간 업데이트 시간: ${lastRefreshed}`);
 
-            await saveForexData({
-              currency: currency,
-              rate: currentRate,
-              timestamp: lastRefreshed
-            });
+            console.log(`💾 Supabase에 ${currency} 환율 데이터 저장 시도...`);
+            try {
+              const savedData = await saveForexData({
+                currency: currency,
+                rate: currentRate,
+                timestamp: lastRefreshed
+              });
+              console.log(`✅ ${currency} 환율 데이터 저장 성공:`, savedData);
+            } catch (saveError) {
+              console.error(`❌ ${currency} 환율 데이터 저장 실패:`, saveError);
+              throw saveError;
+            }
 
-            const storedData = await getForexData(currency, 5);
+            console.log(`📥 저장된 ${currency} 환율 데이터 조회 중...`);
+            try {
+              const storedData = await getForexData(currency, 5);
+              console.log(`✅ 저장된 ${currency} 환율 데이터:`, storedData);
 
-            return NextResponse.json({
-              success: true,
-              message: `${currency} Alpha Vantage 실시간 환율 업데이트 완료`,
-              api_source: 'Alpha Vantage (Real-time Direct)',
-              current_rate: currentRate,
-              last_refreshed: lastRefreshed,
-              stored_data_count: storedData.length,
-              recent_rates: storedData.slice(0, 3).map(d => ({
-                rate: d.rate,
-                timestamp: d.timestamp
-              })),
-              real_time_info: {
-                timestamp: exchangeData['6. Last Refreshed'],
-                data_source: 'Alpha Vantage Real-time'
+              if (!storedData || storedData.length === 0) {
+                throw new Error(`저장된 ${currency} 환율 데이터를 찾을 수 없습니다.`);
               }
-            });
+
+              return NextResponse.json({
+                success: true,
+                message: `${currency} Alpha Vantage 실시간 환율 업데이트 완료`,
+                api_source: 'Alpha Vantage (Real-time)',
+                current_rate: currentRate,
+                last_refreshed: lastRefreshed,
+                stored_data_count: storedData.length,
+                recent_rates: storedData.slice(0, 3).map(d => ({
+                  rate: d.rate,
+                  timestamp: d.timestamp
+                }))
+              });
+            } catch (retrieveError) {
+              console.error(`❌ ${currency} 환율 데이터 조회 실패:`, retrieveError);
+              throw retrieveError;
+            }
           }
         }
         
         console.log(`❌ Alpha Vantage ${currency}/KRW 직접 환율 실패`);
       }
-    } catch (alphaError) {
-      console.log('🚨 Alpha Vantage API 완전 실패:', alphaError);
+    } catch (error) {
+      console.error('❌ Alpha Vantage API 호출 실패:', error);
+      throw error;
     }
 
     // Alpha Vantage 실패 시에만 백업 사용 (실시간성은 떨어지지만 서비스 유지용)
@@ -335,8 +369,7 @@ export async function GET(request: Request) {
     throw new Error('모든 환율 API 접근 실패 (Alpha Vantage 실시간 포함)');
 
   } catch (error) {
-    console.error('❌ 모든 환율 소스 완전 실패:', error);
-    
+    console.error('❌ API 라우트 에러:', error);
     return NextResponse.json(
       { 
         success: false,
