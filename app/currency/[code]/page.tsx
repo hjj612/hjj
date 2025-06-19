@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { getForexData } from '@/utils/supabase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar, Area } from 'recharts';
+import ForexAutoUpdater from '../../../components/ForexAutoUpdater';
 
 // 통화 코드별 이름 맵핑
 const currencyNames: { [key: string]: string } = {
@@ -550,741 +551,760 @@ export default function CurrencyDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* 헤더 */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {currencyNames[currencyCode]} ({currencyCode})
-              </h1>
-              <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                {currencyFlags[currencyCode]}
-              </span>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-gray-900">
-                {currentRate?.toLocaleString()}{currencyCode === 'JPY' ? '원/100엔' : '원'}
+    <div className="min-h-screen bg-gray-50">
+      {/* 자동 환율 업데이터 (페이지를 열 때마다 자동 실행) */}
+      <ForexAutoUpdater 
+        currencies={[currencyCode]}
+        autoUpdateInterval={15} // 15분마다 자동 업데이트 (더 자주)
+        onUpdate={(data) => {
+          console.log(`🔄 ${currencyCode} 환율 업데이트 완료: ${data.rate}원`);
+          // 현재 환율 업데이트
+          if (data.currency === currencyCode) {
+            setCurrentRate(data.rate);
+            // 예측 데이터도 새로운 기준으로 재생성
+            const newPredictions = generateRealisticPredictions(data.rate, currencyCode);
+            setPredictionData(newPredictions);
+          }
+        }}
+      />
+      
+      {/* 기존 페이지 내용 */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* 헤더 */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {currencyNames[currencyCode]} ({currencyCode})
+                </h1>
+                <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                  {currencyFlags[currencyCode]}
+                </span>
               </div>
-              <div className="text-sm text-gray-500">
-                실시간 환율 ({dataSource === 'supabase' ? 'DB' : '기본값'})
+              <div className="text-right">
+                <div className="text-3xl font-bold text-gray-900">
+                  {currentRate?.toLocaleString()}{currencyCode === 'JPY' ? '원/100엔' : '원'}
+                </div>
+                <div className="text-sm text-gray-500">
+                  실시간 환율 ({dataSource === 'supabase' ? 'DB' : '기본값'})
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 탭 네비게이션 */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {[
-              { id: 'overview', name: '개요 및 예측' },
-              { id: 'analysis', name: '기술적 분석' },
-              { id: 'model', name: 'AI 모델 정보' }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.name}
-              </button>
-            ))}
+        {/* 탭 네비게이션 */}
+        <div className="bg-white border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex space-x-8">
+              {[
+                { id: 'overview', name: '개요 및 예측' },
+                { id: 'analysis', name: '기술적 분석' },
+                { id: 'model', name: 'AI 모델 정보' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* 메인 콘텐츠 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* 상단: 차트와 예측 테이블 */}
-            <div className="grid grid-cols-1 xl:grid-cols-7 gap-6 items-stretch">
-              {/* 왼쪽: 캔들차트 */}
-              <div className="xl:col-span-4 flex">
-                <div className="w-full">
-                  <CandlestickChart 
-                    data={historicalData} 
-                    currencyCode={currencyCode} 
-                    predictionData={predictionData}
-                  />
+        {/* 메인 콘텐츠 */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 상단: 차트와 예측 테이블 */}
+              <div className="grid grid-cols-1 xl:grid-cols-7 gap-6 items-stretch">
+                {/* 왼쪽: 캔들차트 */}
+                <div className="xl:col-span-4 flex">
+                  <div className="w-full">
+                    <CandlestickChart 
+                      data={historicalData} 
+                      currencyCode={currencyCode} 
+                      predictionData={predictionData}
+                    />
+                  </div>
+                </div>
+                
+                {/* 오른쪽: 예측 테이블 */}
+                <div className="xl:col-span-3 flex">
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-700">
+                      7일 환율 예측 상세
+                    </h3>
+                    
+                    <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">날짜</th>
+                            <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">예측 환율</th>
+                            <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">신뢰도</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {predictionData.map((day, index) => {
+                            const dateLabel = new Date(day.date).toLocaleDateString('ko-KR', { 
+                              month: 'numeric', 
+                              day: 'numeric',
+                              weekday: 'short'
+                            });
+                            
+                            return (
+                              <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'} hover:bg-blue-25`}>
+                                <td className="py-2 px-3">
+                                  <div className="text-xs">
+                                    <div className="font-medium text-gray-700">{dateLabel}</div>
+                                    <div className="text-gray-500">D+{index + 1}</div>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-3">
+                                  <div className="text-sm font-bold text-blue-600">
+                                    {day.predicted_rate.toFixed(1).toLocaleString()}
+                                    <span className="text-xs text-gray-500 ml-1">
+                                      {currencyCode === 'JPY' ? '/100엔' : '원'}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-3">
+                                  <div className="flex items-center">
+                                    <div className="w-12 bg-gray-200 h-1.5 rounded-full mr-2">
+                                      <div 
+                                        className={`h-full rounded-full ${
+                                          day.confidence >= 85 ? 'bg-gray-600' : 
+                                          day.confidence >= 75 ? 'bg-gray-500' : 'bg-gray-400'
+                                        }`}
+                                        style={{ width: `${day.confidence}%` }} 
+                                      />
+                                    </div>
+                                    <span className={`text-xs font-medium ${
+                                      day.confidence >= 85 ? 'text-gray-700' : 
+                                      day.confidence >= 75 ? 'text-gray-600' : 'text-gray-500'
+                                    }`}>
+                                      {day.confidence}%
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              {/* 오른쪽: 예측 테이블 */}
-              <div className="xl:col-span-3 flex">
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 w-full">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-700">
-                    7일 환율 예측 상세
-                  </h3>
-                  
-                  <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">날짜</th>
-                          <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">예측 환율</th>
-                          <th className="py-2 px-3 text-left font-semibold text-gray-700 text-xs">신뢰도</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {predictionData.map((day, index) => {
-                          const dateLabel = new Date(day.date).toLocaleDateString('ko-KR', { 
-                            month: 'numeric', 
-                            day: 'numeric',
-                            weekday: 'short'
-                          });
+              {/* 하단: 종합 의견 (전체 폭) */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700">종합 분석 의견</h3>
+                <div className="text-sm text-gray-600 leading-snug">
+                  {predictionOpinion.split('\n').map((line, index) => {
+                    if (line.includes('**')) {
+                      const parts = line.split('**');
+                      return (
+                        <div key={index} className="mb-2">
+                          {parts.map((part, partIndex) => 
+                            partIndex % 2 === 1 ? 
+                              <strong key={partIndex} className="font-semibold text-gray-800">{part}</strong> : 
+                              <span key={partIndex}>{part}</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return line.trim() ? <div key={index} className="mb-1.5">{line}</div> : <div key={index} className="mb-2"></div>;
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'analysis' && (
+            <div className="space-y-6">
+              {/* 기술적 지표 요약 - 3개 행 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* RSI 지표 */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">RSI 지표</h4>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-800">{indicators?.rsi.toFixed(1)}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {(indicators?.rsi || 0) > 70 ? '과매수' : (indicators?.rsi || 0) < 30 ? '과매도' : '중립'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 볼린저 밴드 */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">볼린저 밴드</h4>
+                  <div className="text-center space-y-1">
+                    <div className="text-sm text-gray-600">상단: <span className="font-semibold">{indicators?.bollinger_upper.toFixed(1)}</span></div>
+                    <div className="text-sm text-gray-600">중간: <span className="font-semibold">{indicators?.bollinger_middle.toFixed(1)}</span></div>
+                    <div className="text-sm text-gray-600">하단: <span className="font-semibold">{indicators?.bollinger_lower.toFixed(1)}</span></div>
+                  </div>
+                </div>
+
+                {/* 이동평균선 */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">이동평균선</h4>
+                  <div className="text-center space-y-1">
+                    <div className="text-sm text-gray-600">MA20: <span className="font-semibold">{indicators?.ma20.toFixed(1)}</span></div>
+                    <div className="text-sm text-gray-600">MA50: <span className="font-semibold">{indicators?.ma50.toFixed(1)}</span></div>
+                    <div className="text-sm text-gray-600">MA100: <span className="font-semibold">{indicators?.ma100.toFixed(1)}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 차트 섹션 - 3개 행 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* RSI 차트 */}
+                <div className="bg-white rounded-lg p-4 border border-gray-300">
+                  <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">RSI 추세 (14일 기준)</h5>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart 
+                        data={historicalData.slice(-20).map((item, index) => {
+                          // RSI 계산 (단순화된 버전)
+                          const baseRsi = indicators?.rsi || 50;
+                          const variation = Math.sin(index * 0.3) * 15 + Math.random() * 10 - 5;
+                          const rsi = Math.max(0, Math.min(100, baseRsi + variation));
                           
-                          return (
-                            <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'} hover:bg-blue-25`}>
-                              <td className="py-2 px-3">
-                                <div className="text-xs">
-                                  <div className="font-medium text-gray-700">{dateLabel}</div>
-                                  <div className="text-gray-500">D+{index + 1}</div>
-                                </div>
-                              </td>
-                              <td className="py-2 px-3">
-                                <div className="text-sm font-bold text-blue-600">
-                                  {day.predicted_rate.toFixed(1).toLocaleString()}
-                                  <span className="text-xs text-gray-500 ml-1">
-                                    {currencyCode === 'JPY' ? '/100엔' : '원'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-2 px-3">
-                                <div className="flex items-center">
-                                  <div className="w-12 bg-gray-200 h-1.5 rounded-full mr-2">
-                                    <div 
-                                      className={`h-full rounded-full ${
-                                        day.confidence >= 85 ? 'bg-gray-600' : 
-                                        day.confidence >= 75 ? 'bg-gray-500' : 'bg-gray-400'
-                                      }`}
-                                      style={{ width: `${day.confidence}%` }} 
-                                    />
-                                  </div>
-                                  <span className={`text-xs font-medium ${
-                                    day.confidence >= 85 ? 'text-gray-700' : 
-                                    day.confidence >= 75 ? 'text-gray-600' : 'text-gray-500'
-                                  }`}>
-                                    {day.confidence}%
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* 하단: 종합 의견 (전체 폭) */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">종합 분석 의견</h3>
-              <div className="text-sm text-gray-600 leading-snug">
-                {predictionOpinion.split('\n').map((line, index) => {
-                  if (line.includes('**')) {
-                    const parts = line.split('**');
-                    return (
-                      <div key={index} className="mb-2">
-                        {parts.map((part, partIndex) => 
-                          partIndex % 2 === 1 ? 
-                            <strong key={partIndex} className="font-semibold text-gray-800">{part}</strong> : 
-                            <span key={partIndex}>{part}</span>
-                        )}
-                      </div>
-                    );
-                  }
-                  return line.trim() ? <div key={index} className="mb-1.5">{line}</div> : <div key={index} className="mb-2"></div>;
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-                {activeTab === 'analysis' && (
-          <div className="space-y-6">
-            {/* 기술적 지표 요약 - 3개 행 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* RSI 지표 */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">RSI 지표</h4>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-800">{indicators?.rsi.toFixed(1)}</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {(indicators?.rsi || 0) > 70 ? '과매수' : (indicators?.rsi || 0) < 30 ? '과매도' : '중립'}
-                  </div>
-                </div>
-              </div>
-
-              {/* 볼린저 밴드 */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">볼린저 밴드</h4>
-                <div className="text-center space-y-1">
-                  <div className="text-sm text-gray-600">상단: <span className="font-semibold">{indicators?.bollinger_upper.toFixed(1)}</span></div>
-                  <div className="text-sm text-gray-600">중간: <span className="font-semibold">{indicators?.bollinger_middle.toFixed(1)}</span></div>
-                  <div className="text-sm text-gray-600">하단: <span className="font-semibold">{indicators?.bollinger_lower.toFixed(1)}</span></div>
-                </div>
-              </div>
-
-              {/* 이동평균선 */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-300">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">이동평균선</h4>
-                <div className="text-center space-y-1">
-                  <div className="text-sm text-gray-600">MA20: <span className="font-semibold">{indicators?.ma20.toFixed(1)}</span></div>
-                  <div className="text-sm text-gray-600">MA50: <span className="font-semibold">{indicators?.ma50.toFixed(1)}</span></div>
-                  <div className="text-sm text-gray-600">MA100: <span className="font-semibold">{indicators?.ma100.toFixed(1)}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* 차트 섹션 - 3개 행 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* RSI 차트 */}
-              <div className="bg-white rounded-lg p-4 border border-gray-300">
-                <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">RSI 추세 (14일 기준)</h5>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart 
-                      data={historicalData.slice(-20).map((item, index) => {
-                        // RSI 계산 (단순화된 버전)
-                        const baseRsi = indicators?.rsi || 50;
-                        const variation = Math.sin(index * 0.3) * 15 + Math.random() * 10 - 5;
-                        const rsi = Math.max(0, Math.min(100, baseRsi + variation));
-                        
-                        return {
-                          ...item,
-                          rsi: rsi,
-                          date: new Date(Date.now() - (19 - index) * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-                        };
-                      })} 
-                      margin={{ top: 10, right: 10, left: 10, bottom: 30 }}
-                    >
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis 
-                        domain={[0, 100]} 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        width={25}
-                      />
-                      <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#f9fafb', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '6px',
-                          fontSize: '12px'
-                        }}
-                        formatter={(value: any, name: string) => [
-                          `${Math.round(value)}`, 
-                          name === 'rsi' ? 'RSI' : name
-                        ]}
-                        labelFormatter={(label) => `날짜: ${label}`}
-                      />
-                      <Legend 
-                        content={() => (
-                          <div className="flex justify-center gap-4 mt-2 text-xs">
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5 bg-gray-600" style={{ backgroundColor: '#374151' }}></div>
-                              <span>RSI 값</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5 border-t border-dashed border-gray-500"></div>
-                              <span>기준선</span>
-                            </div>
-                          </div>
-                        )}
-                      />
-                      
-                      {/* 과매수/과매도 영역 */}
-                      <Area
-                        dataKey={() => 100}
-                        fill="#f3f4f6"
-                        fillOpacity={0.3}
-                        stroke="none"
-                      />
-                      <Area
-                        dataKey={() => 70}
-                        fill="#ffffff"
-                        fillOpacity={1}
-                        stroke="none"
-                      />
-                      <Area
-                        dataKey={() => 30}
-                        fill="#e5e7eb"
-                        fillOpacity={0.3}
-                        stroke="none"
-                      />
-                      <Area
-                        dataKey={() => 0}
-                        fill="#ffffff"
-                        fillOpacity={1}
-                        stroke="none"
-                      />
-                      
-                      {/* 기준선 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey={() => 70} 
-                        stroke="#6b7280" 
-                        strokeWidth={1} 
-                        dot={false}
-                        strokeDasharray="2 2"
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey={() => 50} 
-                        stroke="#9ca3af" 
-                        strokeWidth={1} 
-                        dot={false}
-                        strokeDasharray="1 1"
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey={() => 30} 
-                        stroke="#6b7280" 
-                        strokeWidth={1} 
-                        dot={false}
-                        strokeDasharray="2 2"
-                      />
-                      
-                      {/* RSI 실제 라인 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="rsi"
-                        stroke="#374151" 
-                        strokeWidth={2} 
-                        dot={{ r: 2, fill: '#374151' }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-                
-                {/* RSI 설명 */}
-                <div className="mt-2 text-xs text-gray-600">
-                  <div className="flex justify-between mb-1">
-                    <span className="font-medium">과매도 구간 (0-30)</span>
-                    <span className="font-medium">중립 구간 (30-70)</span>
-                    <span className="font-medium">과매수 구간 (70-100)</span>
-                  </div>
-                  <div className="text-center text-gray-500">
-                    RSI는 상대강도지수로 과매수/과매도 상태를 나타냅니다
-                  </div>
-                </div>
-              </div>
-
-              {/* 볼린저 밴드 차트 */}
-              <div className="bg-white rounded-lg p-4 border border-gray-300">
-                <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">볼린저 밴드 (20일 이평선, 2배 표준편차)</h5>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart 
-                      data={historicalData.slice(-15).map((item, index) => {
-                        // 실제 가격 데이터 사용
-                        const currentPrice = item.close || item.rate || currentRate || 1300;
-                        // 볼린저 밴드 실제 계산
-                        const middle = indicators?.bollinger_middle || currentPrice;
-                        const stdDev = currentPrice * 0.02; // 대략적인 표준편차
-                        const upper = indicators?.bollinger_upper || (middle + 2 * stdDev);
-                        const lower = indicators?.bollinger_lower || (middle - 2 * stdDev);
-                        
-                        // 실제 날짜 생성
-                        const date = new Date();
-                        date.setDate(date.getDate() - (14 - index));
-                        
-                        return {
-                          ...item,
-                          price: Math.round(currentPrice),
-                          upper: Math.round(upper),
-                          middle: Math.round(middle),
-                          lower: Math.round(lower),
-                          date: date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-                        };
-                      })} 
-                      margin={{ top: 10, right: 10, left: 45, bottom: 30 }}
-                    >
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis 
-                        domain={['dataMin - 20', 'dataMax + 20']} 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        width={40}
-                        tickFormatter={(value) => Math.round(value).toLocaleString()}
-                      />
-                      <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#f9fafb', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '6px',
-                          fontSize: '12px'
-                        }}
-                        formatter={(value: any, name: string) => {
-                          const displayNames: { [key: string]: string } = {
-                            'price': '현재가',
-                            'upper': '상한선',
-                            'middle': '중심선',
-                            'lower': '하한선'
+                          return {
+                            ...item,
+                            rsi: rsi,
+                            date: new Date(Date.now() - (19 - index) * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
                           };
-                          return [`${Math.round(value).toLocaleString()}원`, displayNames[name] || name];
-                        }}
-                        labelFormatter={(label) => `날짜: ${label}`}
-                      />
-                      <Legend 
-                        content={() => (
-                          <div className="flex justify-center gap-3 mt-2 text-xs">
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5" style={{ backgroundColor: '#374151' }}></div>
-                              <span>현재가</span>
+                        })} 
+                        margin={{ top: 10, right: 10, left: 10, bottom: 30 }}
+                      >
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis 
+                          domain={[0, 100]} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          width={25}
+                        />
+                        <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#f9fafb', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value: any, name: string) => [
+                            `${Math.round(value)}`, 
+                            name === 'rsi' ? 'RSI' : name
+                          ]}
+                          labelFormatter={(label) => `날짜: ${label}`}
+                        />
+                        <Legend 
+                          content={() => (
+                            <div className="flex justify-center gap-4 mt-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5 bg-gray-600" style={{ backgroundColor: '#374151' }}></div>
+                                <span>RSI 값</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5 border-t border-dashed border-gray-500"></div>
+                                <span>기준선</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5" style={{ backgroundColor: '#6b7280' }}></div>
-                              <span>중심선(MA20)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5 border-t border-dashed" style={{ borderColor: '#9ca3af' }}></div>
-                              <span>상/하한선(±2σ)</span>
-                            </div>
-                          </div>
-                        )}
-                      />
-                      
-                      {/* 볼린저 밴드 영역 */}
-                      <Area
-                        dataKey="upper"
-                        fill="#f3f4f6"
-                        fillOpacity={0.3}
-                        stroke="none"
-                      />
-                      <Area
-                        dataKey="lower"
-                        fill="#ffffff"
-                        fillOpacity={1}
-                        stroke="none"
-                      />
-                      
-                      {/* 볼린저 밴드 라인들 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="upper" 
-                        stroke="#9ca3af" 
-                        strokeWidth={1} 
-                        dot={false}
-                        strokeDasharray="3 3"
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="middle" 
-                        stroke="#6b7280" 
-                        strokeWidth={1} 
-                        dot={false}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="lower" 
-                        stroke="#9ca3af" 
-                        strokeWidth={1} 
-                        dot={false}
-                        strokeDasharray="3 3"
-                      />
-                      
-                      {/* 현재가 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="price" 
-                        stroke="#374151" 
-                        strokeWidth={2} 
-                        dot={{ r: 2, fill: '#374151' }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-                
-                {/* 볼린저 밴드 설명 */}
-                <div className="mt-2 text-xs text-gray-600">
-                  <div className="text-center text-gray-500">
-                    <div className="font-medium mb-1">볼린저 밴드: 20일 이동평균선 ± (2 × 표준편차)</div>
-                    <div>가격이 상한선에 가까우면 과매수, 하한선에 가까우면 과매도 상태</div>
+                          )}
+                        />
+                        
+                        {/* 과매수/과매도 영역 */}
+                        <Area
+                          dataKey={() => 100}
+                          fill="#f3f4f6"
+                          fillOpacity={0.3}
+                          stroke="none"
+                        />
+                        <Area
+                          dataKey={() => 70}
+                          fill="#ffffff"
+                          fillOpacity={1}
+                          stroke="none"
+                        />
+                        <Area
+                          dataKey={() => 30}
+                          fill="#e5e7eb"
+                          fillOpacity={0.3}
+                          stroke="none"
+                        />
+                        <Area
+                          dataKey={() => 0}
+                          fill="#ffffff"
+                          fillOpacity={1}
+                          stroke="none"
+                        />
+                        
+                        {/* 기준선 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey={() => 70} 
+                          stroke="#6b7280" 
+                          strokeWidth={1} 
+                          dot={false}
+                          strokeDasharray="2 2"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey={() => 50} 
+                          stroke="#9ca3af" 
+                          strokeWidth={1} 
+                          dot={false}
+                          strokeDasharray="1 1"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey={() => 30} 
+                          stroke="#6b7280" 
+                          strokeWidth={1} 
+                          dot={false}
+                          strokeDasharray="2 2"
+                        />
+                        
+                        {/* RSI 실제 라인 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="rsi"
+                          stroke="#374151" 
+                          strokeWidth={2} 
+                          dot={{ r: 2, fill: '#374151' }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* RSI 설명 */}
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div className="flex justify-between mb-1">
+                      <span className="font-medium">과매도 구간 (0-30)</span>
+                      <span className="font-medium">중립 구간 (30-70)</span>
+                      <span className="font-medium">과매수 구간 (70-100)</span>
+                    </div>
+                    <div className="text-center text-gray-500">
+                      RSI는 상대강도지수로 과매수/과매도 상태를 나타냅니다
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 이동평균선 차트 */}
-              <div className="bg-white rounded-lg p-4 border border-gray-300">
-                <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">이동평균선 분석 (단기/중기/장기 추세)</h5>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart 
-                      data={historicalData.slice(-20).map((item, index) => {
-                        // 실제 가격 데이터 사용
-                        const currentPrice = item.close || item.rate || currentRate || 1300;
-                        // 실제 이동평균 값 계산 (현재 지표값 기반)
-                        const ma20 = indicators?.ma20 || Math.round(currentPrice * 0.998);
-                        const ma50 = indicators?.ma50 || Math.round(currentPrice * 0.995);
-                        const ma100 = indicators?.ma100 || Math.round(currentPrice * 0.99);
-                        
-                        // 실제 날짜 생성
-                        const date = new Date();
-                        date.setDate(date.getDate() - (19 - index));
-                        
-                        return {
-                          ...item,
-                          price: Math.round(currentPrice),
-                          ma20: ma20,
-                          ma50: ma50,
-                          ma100: ma100,
-                          date: date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-                        };
-                      })} 
-                      margin={{ top: 10, right: 10, left: 45, bottom: 30 }}
-                    >
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis 
-                        domain={['dataMin - 30', 'dataMax + 30']} 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 10, fill: '#6b7280' }}
-                        width={50}
-                        tickFormatter={(value) => Math.round(value).toLocaleString()}
-                      />
-                      <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#f9fafb', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '6px',
-                          fontSize: '12px'
-                        }}
-                        formatter={(value: any, name: string) => {
-                          const displayNames: { [key: string]: string } = {
-                            'price': '현재가',
-                            'ma20': '단기 이평선(20일)',
-                            'ma50': '중기 이평선(50일)',
-                            'ma100': '장기 이평선(100일)'
+                {/* 볼린저 밴드 차트 */}
+                <div className="bg-white rounded-lg p-4 border border-gray-300">
+                  <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">볼린저 밴드 (20일 이평선, 2배 표준편차)</h5>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart 
+                        data={historicalData.slice(-15).map((item, index) => {
+                          // 실제 가격 데이터 사용
+                          const currentPrice = item.close || item.rate || currentRate || 1300;
+                          // 볼린저 밴드 실제 계산
+                          const middle = indicators?.bollinger_middle || currentPrice;
+                          const stdDev = currentPrice * 0.02; // 대략적인 표준편차
+                          const upper = indicators?.bollinger_upper || (middle + 2 * stdDev);
+                          const lower = indicators?.bollinger_lower || (middle - 2 * stdDev);
+                          
+                          // 실제 날짜 생성
+                          const date = new Date();
+                          date.setDate(date.getDate() - (14 - index));
+                          
+                          return {
+                            ...item,
+                            price: Math.round(currentPrice),
+                            upper: Math.round(upper),
+                            middle: Math.round(middle),
+                            lower: Math.round(lower),
+                            date: date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
                           };
-                          return [`${Math.round(value).toLocaleString()}원`, displayNames[name] || name];
-                        }}
-                        labelFormatter={(label) => `날짜: ${label}`}
-                      />
-                      <Legend 
-                        content={() => (
-                          <div className="flex justify-center gap-2 mt-2 text-xs flex-wrap" style={{ fontSize: '10px' }}>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5" style={{ backgroundColor: '#374151', height: '2px' }}></div>
-                              <span>현재가</span>
+                        })} 
+                        margin={{ top: 10, right: 10, left: 45, bottom: 30 }}
+                      >
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis 
+                          domain={['dataMin - 20', 'dataMax + 20']} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          width={40}
+                          tickFormatter={(value) => Math.round(value).toLocaleString()}
+                        />
+                        <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#f9fafb', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value: any, name: string) => {
+                            const displayNames: { [key: string]: string } = {
+                              'price': '현재가',
+                              'upper': '상한선',
+                              'middle': '중심선',
+                              'lower': '하한선'
+                            };
+                            return [`${Math.round(value).toLocaleString()}원`, displayNames[name] || name];
+                          }}
+                          labelFormatter={(label) => `날짜: ${label}`}
+                        />
+                        <Legend 
+                          content={() => (
+                            <div className="flex justify-center gap-3 mt-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5" style={{ backgroundColor: '#374151' }}></div>
+                                <span>현재가</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5" style={{ backgroundColor: '#6b7280' }}></div>
+                                <span>중심선(MA20)</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5 border-t border-dashed" style={{ borderColor: '#9ca3af' }}></div>
+                                <span>상/하한선(±2σ)</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-0.5" style={{ backgroundColor: '#6b7280', height: '2px' }}></div>
-                              <span>MA20</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 border-t-2 border-dashed" style={{ borderColor: '#9ca3af', borderTopWidth: '1.5px' }}></div>
-                              <span>MA50</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 border-t-2 border-dashed" style={{ borderColor: '#d1d5db', borderTopWidth: '1.5px' }}></div>
-                              <span>MA100</span>
-                            </div>
-                          </div>
-                        )}
-                      />
-                      
-                      {/* 현재가 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="price" 
-                        stroke="#374151" 
-                        strokeWidth={2} 
-                        dot={{ r: 2, fill: '#374151' }}
-                      />
-                      
-                      {/* MA20 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="ma20" 
-                        stroke="#6b7280" 
-                        strokeWidth={1.5} 
-                        dot={false}
-                      />
-                      
-                      {/* MA50 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="ma50" 
-                        stroke="#9ca3af" 
-                        strokeWidth={1.5} 
-                        dot={false}
-                        strokeDasharray="3 3"
-                      />
-                      
-                      {/* MA100 */}
-                      <Line 
-                        type="monotone" 
-                        dataKey="ma100" 
-                        stroke="#d1d5db" 
-                        strokeWidth={1.5} 
-                        dot={false}
-                        strokeDasharray="5 5"
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                          )}
+                        />
+                        
+                        {/* 볼린저 밴드 영역 */}
+                        <Area
+                          dataKey="upper"
+                          fill="#f3f4f6"
+                          fillOpacity={0.3}
+                          stroke="none"
+                        />
+                        <Area
+                          dataKey="lower"
+                          fill="#ffffff"
+                          fillOpacity={1}
+                          stroke="none"
+                        />
+                        
+                        {/* 볼린저 밴드 라인들 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="upper" 
+                          stroke="#9ca3af" 
+                          strokeWidth={1} 
+                          dot={false}
+                          strokeDasharray="3 3"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="middle" 
+                          stroke="#6b7280" 
+                          strokeWidth={1} 
+                          dot={false}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="lower" 
+                          stroke="#9ca3af" 
+                          strokeWidth={1} 
+                          dot={false}
+                          strokeDasharray="3 3"
+                        />
+                        
+                        {/* 현재가 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="price" 
+                          stroke="#374151" 
+                          strokeWidth={2} 
+                          dot={{ r: 2, fill: '#374151' }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* 볼린저 밴드 설명 */}
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div className="text-center text-gray-500">
+                      <div className="font-medium mb-1">볼린저 밴드: 20일 이동평균선 ± (2 × 표준편차)</div>
+                      <div>가격이 상한선에 가까우면 과매수, 하한선에 가까우면 과매도 상태</div>
+                    </div>
+                  </div>
                 </div>
-                
-                {/* 이동평균선 설명 */}
-                <div className="mt-2 text-xs text-gray-600">
-                  <div className="text-center text-gray-500">
-                    <div className="font-medium mb-1">이동평균선: 과거 일정 기간의 평균 가격</div>
-                    <div>현재가가 이평선 위에 있으면 상승추세, 아래에 있으면 하락추세</div>
+
+                {/* 이동평균선 차트 */}
+                <div className="bg-white rounded-lg p-4 border border-gray-300">
+                  <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">이동평균선 분석 (단기/중기/장기 추세)</h5>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart 
+                        data={historicalData.slice(-20).map((item, index) => {
+                          // 실제 가격 데이터 사용
+                          const currentPrice = item.close || item.rate || currentRate || 1300;
+                          // 실제 이동평균 값 계산 (현재 지표값 기반)
+                          const ma20 = indicators?.ma20 || Math.round(currentPrice * 0.998);
+                          const ma50 = indicators?.ma50 || Math.round(currentPrice * 0.995);
+                          const ma100 = indicators?.ma100 || Math.round(currentPrice * 0.99);
+                          
+                          // 실제 날짜 생성
+                          const date = new Date();
+                          date.setDate(date.getDate() - (19 - index));
+                          
+                          return {
+                            ...item,
+                            price: Math.round(currentPrice),
+                            ma20: ma20,
+                            ma50: ma50,
+                            ma100: ma100,
+                            date: date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                          };
+                        })} 
+                        margin={{ top: 10, right: 10, left: 45, bottom: 30 }}
+                      >
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis 
+                          domain={['dataMin - 30', 'dataMax + 30']} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          width={50}
+                          tickFormatter={(value) => Math.round(value).toLocaleString()}
+                        />
+                        <CartesianGrid strokeDasharray="1 1" stroke="#e5e7eb" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#f9fafb', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value: any, name: string) => {
+                            const displayNames: { [key: string]: string } = {
+                              'price': '현재가',
+                              'ma20': '단기 이평선(20일)',
+                              'ma50': '중기 이평선(50일)',
+                              'ma100': '장기 이평선(100일)'
+                            };
+                            return [`${Math.round(value).toLocaleString()}원`, displayNames[name] || name];
+                          }}
+                          labelFormatter={(label) => `날짜: ${label}`}
+                        />
+                        <Legend 
+                          content={() => (
+                            <div className="flex justify-center gap-2 mt-2 text-xs flex-wrap" style={{ fontSize: '10px' }}>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5" style={{ backgroundColor: '#374151', height: '2px' }}></div>
+                                <span>현재가</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 h-0.5" style={{ backgroundColor: '#6b7280', height: '2px' }}></div>
+                                <span>MA20</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 border-t-2 border-dashed" style={{ borderColor: '#9ca3af', borderTopWidth: '1.5px' }}></div>
+                                <span>MA50</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-3 border-t-2 border-dashed" style={{ borderColor: '#d1d5db', borderTopWidth: '1.5px' }}></div>
+                                <span>MA100</span>
+                              </div>
+                            </div>
+                          )}
+                        />
+                        
+                        {/* 현재가 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="price" 
+                          stroke="#374151" 
+                          strokeWidth={2} 
+                          dot={{ r: 2, fill: '#374151' }}
+                        />
+                        
+                        {/* MA20 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="ma20" 
+                          stroke="#6b7280" 
+                          strokeWidth={1.5} 
+                          dot={false}
+                        />
+                        
+                        {/* MA50 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="ma50" 
+                          stroke="#9ca3af" 
+                          strokeWidth={1.5} 
+                          dot={false}
+                          strokeDasharray="3 3"
+                        />
+                        
+                        {/* MA100 */}
+                        <Line 
+                          type="monotone" 
+                          dataKey="ma100" 
+                          stroke="#d1d5db" 
+                          strokeWidth={1.5} 
+                          dot={false}
+                          strokeDasharray="5 5"
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* 이동평균선 설명 */}
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div className="text-center text-gray-500">
+                      <div className="font-medium mb-1">이동평균선: 과거 일정 기간의 평균 가격</div>
+                      <div>현재가가 이평선 위에 있으면 상승추세, 아래에 있으면 하락추세</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'model' && (
-          <div className="space-y-6">
-            {/* 앙상블 모델 - 메인 섹션 */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">앙상블 예측 모델</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
-                    <h5 className="font-semibold text-gray-700 mb-2">ARIMA 모델 (40%)</h5>
-                    <p className="text-sm text-gray-600 flex-1">자기회귀통합이동평균 모델로 시계열 패턴과 계절성을 분석하여 트렌드 기반 예측을 수행합니다.</p>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
-                    <h5 className="font-semibold text-gray-700 mb-2">LSTM 신경망 (30%)</h5>
-                    <p className="text-sm text-gray-600 flex-1">장단기 메모리 네트워크로 복잡한 비선형 패턴과 장기 의존성을 학습하여 정교한 예측을 제공합니다.</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
-                    <h5 className="font-semibold text-gray-700 mb-2">선형 회귀 (20%)</h5>
-                    <p className="text-sm text-gray-600 flex-1">기술적 지표들과 환율의 선형 관계를 모델링하여 안정적인 기준선 예측을 제공합니다.</p>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
-                    <h5 className="font-semibold text-gray-700 mb-2">지수 평활 (10%)</h5>
-                    <p className="text-sm text-gray-600 flex-1">최근 데이터에 더 높은 가중치를 부여하여 단기 변동성을 반영한 예측을 수행합니다.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 기술적 지표 */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
-              <h4 className="text-lg font-semibold mb-4 text-gray-800">활용 기술적 지표</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="text-2xl font-bold text-gray-700">{indicators?.rsi.toFixed(1)}</div>
-                  <div className="text-sm text-gray-600 mt-1">RSI (상대강도지수)</div>
-                  <div className="text-xs text-gray-500 mt-1">과매수/과매도 판단</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="text-lg font-bold text-gray-700">20/50/100</div>
-                  <div className="text-sm text-gray-600 mt-1">이동평균선</div>
-                  <div className="text-xs text-gray-500 mt-1">단중장기 트렌드 분석</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="text-lg font-bold text-gray-700">볼린저 밴드</div>
-                  <div className="text-sm text-gray-600 mt-1">변동성 측정</div>
-                  <div className="text-xs text-gray-500 mt-1">지지/저항선 분석</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 정확도 및 위험도 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {activeTab === 'model' && (
+            <div className="space-y-6">
+              {/* 앙상블 모델 - 메인 섹션 */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
-                <h4 className="text-lg font-semibold mb-4 text-gray-800">예측 정확도</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">1일 예측</span>
-                    <div className="flex items-center">
-                      <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
-                        <div className="w-[92%] bg-gray-600 h-full rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-700">92%</span>
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">앙상블 예측 모델</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
+                      <h5 className="font-semibold text-gray-700 mb-2">ARIMA 모델 (40%)</h5>
+                      <p className="text-sm text-gray-600 flex-1">자기회귀통합이동평균 모델로 시계열 패턴과 계절성을 분석하여 트렌드 기반 예측을 수행합니다.</p>
+                    </div>
+                    <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
+                      <h5 className="font-semibold text-gray-700 mb-2">LSTM 신경망 (30%)</h5>
+                      <p className="text-sm text-gray-600 flex-1">장단기 메모리 네트워크로 복잡한 비선형 패턴과 장기 의존성을 학습하여 정교한 예측을 제공합니다.</p>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">3일 예측</span>
-                    <div className="flex items-center">
-                      <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
-                        <div className="w-[86%] bg-gray-500 h-full rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-700">86%</span>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
+                      <h5 className="font-semibold text-gray-700 mb-2">선형 회귀 (20%)</h5>
+                      <p className="text-sm text-gray-600 flex-1">기술적 지표들과 환율의 선형 관계를 모델링하여 안정적인 기준선 예측을 제공합니다.</p>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">7일 예측</span>
-                    <div className="flex items-center">
-                      <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
-                        <div className="w-[75%] bg-gray-400 h-full rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-700">75%</span>
+                    <div className="p-4 bg-white rounded-lg border border-gray-300 h-24 flex flex-col">
+                      <h5 className="font-semibold text-gray-700 mb-2">지수 평활 (10%)</h5>
+                      <p className="text-sm text-gray-600 flex-1">최근 데이터에 더 높은 가중치를 부여하여 단기 변동성을 반영한 예측을 수행합니다.</p>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* 기술적 지표 */}
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
-                <h4 className="text-lg font-semibold mb-4 text-gray-800">위험 요소</h4>
-                <div className="space-y-3">
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
-                    <div className="font-semibold text-gray-700 text-sm">시장 급변동</div>
-                    <div className="text-xs text-gray-600 mt-1">국제 경제 이슈로 인한 예측 정확도 저하</div>
+                <h4 className="text-lg font-semibold mb-4 text-gray-800">활용 기술적 지표</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-2xl font-bold text-gray-700">{indicators?.rsi.toFixed(1)}</div>
+                    <div className="text-sm text-gray-600 mt-1">RSI (상대강도지수)</div>
+                    <div className="text-xs text-gray-500 mt-1">과매수/과매도 판단</div>
                   </div>
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
-                    <div className="font-semibold text-gray-700 text-sm">데이터 지연</div>
-                    <div className="text-xs text-gray-600 mt-1">API 제한으로 인한 실시간성 저하</div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-lg font-bold text-gray-700">20/50/100</div>
+                    <div className="text-sm text-gray-600 mt-1">이동평균선</div>
+                    <div className="text-xs text-gray-500 mt-1">단중장기 트렌드 분석</div>
                   </div>
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
-                    <div className="font-semibold text-gray-700 text-sm">모델 한계</div>
-                    <div className="text-xs text-gray-600 mt-1">과거 패턴 기반으로 미래 예측 시 한계 존재</div>
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-lg font-bold text-gray-700">볼린저 밴드</div>
+                    <div className="text-sm text-gray-600 mt-1">변동성 측정</div>
+                    <div className="text-xs text-gray-500 mt-1">지지/저항선 분석</div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 면책 조항 */}
-            <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-700 mb-2">투자 유의사항</h4>
-              <p className="text-sm text-gray-600">
-                본 예측 정보는 참고용이며, 실제 투자 결정은 개인의 판단과 책임하에 이루어져야 합니다. 
-                환율 변동은 다양한 경제적, 정치적 요인에 의해 영향을 받으므로 예측과 다를 수 있습니다.
-              </p>
+              {/* 정확도 및 위험도 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800">예측 정확도</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">1일 예측</span>
+                      <div className="flex items-center">
+                        <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
+                          <div className="w-[92%] bg-gray-600 h-full rounded-full"></div>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700">92%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">3일 예측</span>
+                      <div className="flex items-center">
+                        <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
+                          <div className="w-[86%] bg-gray-500 h-full rounded-full"></div>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700">86%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">7일 예측</span>
+                      <div className="flex items-center">
+                        <div className="w-24 bg-gray-200 h-2 rounded-full mr-2">
+                          <div className="w-[75%] bg-gray-400 h-full rounded-full"></div>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700">75%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-300">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800">위험 요소</h4>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="font-semibold text-gray-700 text-sm">시장 급변동</div>
+                      <div className="text-xs text-gray-600 mt-1">국제 경제 이슈로 인한 예측 정확도 저하</div>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="font-semibold text-gray-700 text-sm">데이터 지연</div>
+                      <div className="text-xs text-gray-600 mt-1">API 제한으로 인한 실시간성 저하</div>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="font-semibold text-gray-700 text-sm">모델 한계</div>
+                      <div className="text-xs text-gray-600 mt-1">과거 패턴 기반으로 미래 예측 시 한계 존재</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 면책 조항 */}
+              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-700 mb-2">투자 유의사항</h4>
+                <p className="text-sm text-gray-600">
+                  본 예측 정보는 참고용이며, 실제 투자 결정은 개인의 판단과 책임하에 이루어져야 합니다. 
+                  환율 변동은 다양한 경제적, 정치적 요인에 의해 영향을 받으므로 예측과 다를 수 있습니다.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
