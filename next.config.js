@@ -5,21 +5,37 @@ const nextConfig = {
     optimizePackageImports: ['react', 'react-dom']
   },
   images: {
-    domains: ['s3.tradingview.com'],
-  },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://charting-library.tradingview-widget.com; object-src 'none';",
-          },
-        ],
-      },
-    ];
-  },
+    domains: [
+      'images.unsplash.com',
+      'via.placeholder.com',
+      'localhost',
+      'example.com',
+      'picsum.photos',
+      'source.unsplash.com',
+      'www.xe.com',
+      'flagpedia.net',
+      'flagcdn.com',
+      'countryflags.io',
+      'cdn.jsdelivr.net',
+      'raw.githubusercontent.com',
+      'github.com',
+      'assets.coingecko.com',
+      'coin-images.coingecko.com',
+      'media.giphy.com',
+      'giphy.com',
+      'assets.website-files.com',
+      'webflow.com',
+      'uploads-ssl.webflow.com',
+      'i.imgur.com',
+      'imgur.com',
+      'images.pexels.com',
+      'www.pexels.com',
+      'cdn.pixabay.com',
+      'pixabay.com',
+      'freeimages.com',
+      'www.freeimages.com'
+    ]
+  }
 };
 
 module.exports = nextConfig; 

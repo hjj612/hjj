@@ -2,19 +2,13 @@ import { Suspense } from 'react';
 import TickerTapeWidget from '../components/TickerTapeWidget';
 import ForexHeatmap from '../components/ForexHeatmap';
 import ForexChatbot from '../components/ForexChatbot';
-import ForexAutoUpdater from '../components/ForexAutoUpdater';
+import ForexAutoUpdaterWrapper from '../components/ForexAutoUpdaterWrapper';
 import Link from 'next/link';
 
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col bg-gray-50">
-      <ForexAutoUpdater 
-        currencies={['USD', 'JPY', 'EUR', 'CNY']}
-        autoUpdateInterval={30}
-        onUpdate={(data) => {
-          console.log(`🔄 환율 업데이트 완료: ${data.currency} = ${data.rate}원`);
-        }}
-      />
+      <ForexAutoUpdaterWrapper />
       
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-[1920px] mx-auto">
