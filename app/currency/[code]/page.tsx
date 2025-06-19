@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { getForexData } from '@/utils/supabase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar, Area } from 'recharts';
-import ForexAutoUpdater from '../../../components/ForexAutoUpdater';
+import ForexAutoUpdaterCurrencyWrapper from '../../../components/ForexAutoUpdaterCurrencyWrapper';
 
 // 통화 코드별 이름 맵핑
 const currencyNames: { [key: string]: string } = {
@@ -553,9 +553,8 @@ export default function CurrencyDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 자동 환율 업데이터 (페이지를 열 때마다 자동 실행) */}
-      <ForexAutoUpdater 
-        currencies={[currencyCode]}
-        autoUpdateInterval={15} // 15분마다 자동 업데이트 (더 자주)
+      <ForexAutoUpdaterCurrencyWrapper
+        currencyCode={currencyCode}
         onUpdate={(data) => {
           console.log(`🔄 ${currencyCode} 환율 업데이트 완료: ${data.rate}원`);
           // 현재 환율 업데이트
