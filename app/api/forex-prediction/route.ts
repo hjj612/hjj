@@ -33,51 +33,69 @@ export async function POST(request: Request) {
     const { data: latestRate, error: rateError } = await supabase
       .from('forex_rates')
       .select('*')
-      .eq('currency_pair', `${requestedCurrency}/KRW`)
+      .eq('currency', requestedCurrency)
       .order('timestamp', { ascending: false })
       .limit(1);
 
     if (rateError) {
-      throw rateError;
+      console.error('Rate Error:', rateError);
+      throw new Error(`환율 데이터 조회 실패: ${rateError.message || 'Unknown error'}`);
     }
 
     // 예측 데이터 조회
     const { data: prediction, error: predictionError } = await supabase
       .from('forex_predictions')
       .select('*')
-      .eq('currency_pair', `${requestedCurrency}/KRW`)
-      .order('timestamp', { ascending: false })
+      .eq('currency', requestedCurrency)
+      .order('created_at', { ascending: false })
       .limit(1);
 
     if (predictionError) {
-      throw predictionError;
+      console.error('Prediction Error:', predictionError);
+      // 예측 데이터 오류는 치명적이지 않으므로 로그만 남기고 계속 진행
     }
 
     let response = '';
-    if (latestRate ? latestRate[0] : false) {
+    
+    // 배열이 존재하고 비어있지 않은지 확인
+    if (latestRate && latestRate.length > 0) {
+      const currentRate = latestRate[0];
       const currencyName = currencyNames[requestedCurrency] || requestedCurrency;
       
-      response = `현재 ${currencyName}(${requestedCurrency}/KRW) 환율은 ${latestRate[0].rate.toFixed(2)}원 입니다.\n\n`;
-      
-      if (prediction ? prediction[0] : false) {
-        response += `다음 예측 환율은 ${prediction[0].predicted_rate.toFixed(2)}원 입니다.\n\n`;
+      if (currentRate && currentRate.rate) {
+        response = `현재 ${currencyName}(${requestedCurrency}/KRW) 환율은 ${currentRate.rate.toFixed(2)}원 입니다.\n\n`;
         
-        // 예측 신뢰도 추가
-        const confidence = prediction[0].confidence || Math.floor(Math.random() * 20) + 75; // 임시 데이터
-        response += `예측 신뢰도: ${confidence}%\n\n`;
+        // 예측 데이터가 있는지 확인
+        if (prediction && prediction.length > 0 && prediction[0] && prediction[0].predicted_rate) {
+          const currentPrediction = prediction[0];
+          response += `다음 예측 환율은 ${currentPrediction.predicted_rate.toFixed(2)}원 입니다.\n\n`;
+          
+          // 예측 신뢰도 추가
+          const confidence = currentPrediction.confidence || Math.floor(Math.random() * 20) + 75; // 임시 데이터
+          response += `예측 신뢰도: ${confidence}%\n\n`;
+        }
+        
+        // 상세 분석 안내 추가
+        response += `더 자세한 분석과 7일간의 예측, 기술적 지표(RSI, 볼린저 밴드, 이동평균선)를 보시려면 상단의 ${currencyName} 환율 블록을 클릭하세요.`;
+      } else {
+        response = `${currencyNames[requestedCurrency] || requestedCurrency} 환율 데이터가 올바르지 않습니다.`;
       }
-      
-      // 상세 분석 안내 추가
-      response += `더 자세한 분석과 7일간의 예측, 기술적 지표(RSI, 볼린저 밴드, 이동평균선)를 보시려면 상단의 ${currencyName} 환율 블록을 클릭하세요.`;
     } else {
-      response = '죄송합니다. 현재 해당 통화의 환율 정보를 조회할 수 없습니다.';
+      response = `죄송합니다. 현재 ${currencyNames[requestedCurrency] || requestedCurrency}의 환율 정보를 조회할 수 없습니다.`;
     }
 
     return NextResponse.json({ response });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('API Error:', error);
+    
+    // 오류 메시지를 명확하게 처리
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+    
     return NextResponse.json(
-      { error: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' },
+      { 
+        error: errorMessage,
+        response: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' 
+      },
       { status: 500 }
     );
   }

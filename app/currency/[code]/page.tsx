@@ -517,7 +517,8 @@ export default function CurrencyDetailPage() {
 
     } catch (error) {
       console.error('❌ 데이터 가져오기 오류:', error);
-      setError(`데이터를 가져오는 중 오류가 발생했습니다: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setError(`데이터를 가져오는 중 오류가 발생했습니다: ${errorMessage}`);
       setIsLoading(false);
     }
   }, [currencyCode]);

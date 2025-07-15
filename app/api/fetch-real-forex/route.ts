@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { saveForexData, getForexData } from '@/utils/supabase';
 
-// API 호출 한도 관리를 위한 캐시
+// API 호출 간격 제한을 위한 최소한의 캐시 (1분만)
 const apiCallCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5분 캐시
+const CACHE_DURATION = 1 * 60 * 1000; // 1분만 캐시 (API 과부하 방지용)
 
 function isCacheValid(currency: string): boolean {
   const cacheEntry = apiCallCache.get(currency);
@@ -23,62 +23,37 @@ function setCache(currency: string, data: any) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const currency = searchParams.get('currency') || 'USD';
+  const forceUpdate = searchParams.get('force') === 'true'; // 강제 업데이트 파라미터 추가
 
   try {
-    console.log(`🔄 ${currency} 실시간 환율 가져오기 시작...`);
+    console.log(`🔄 ${currency} 실시간 환율 가져오기 시작... (강제업데이트: ${forceUpdate})`);
     console.log('🔑 API 키 확인:', process.env.ALPHA_VANTAGE_API_KEY ? '존재함' : '없음');
     
-    // 1. 캐시된 데이터 확인 (API 호출 한도 절약)
-    if (isCacheValid(currency)) {
-      console.log('📦 캐시된 데이터 사용...');
+    // 1. 강제 업데이트가 아닌 경우에만 1분 캐시 확인 (API 과부하 방지만)
+    if (!forceUpdate && isCacheValid(currency)) {
+      console.log('📦 1분 캐시 데이터 사용 (API 과부하 방지)...');
       const cachedData = apiCallCache.get(currency).data;
       return NextResponse.json({
         success: true,
         message: `${currency} 캐시된 환율 데이터 반환`,
-        api_source: 'Cache (Rate Limit Protection)',
+        api_source: 'Cache (API Overload Protection)',
         current_rate: cachedData.current_rate,
         last_refreshed: cachedData.last_refreshed,
         cached: true,
-        cache_duration_minutes: 5
+        cache_duration_minutes: 1
       });
     }
     
-    // 2. 저장된 최신 데이터 확인 (1시간 이내면 사용)
-    try {
-      const storedData = await getForexData(currency, 1);
-      if (storedData && storedData.length > 0) {
-        const latestData = storedData[0];
-        const hoursAgo = (Date.now() - new Date(latestData.timestamp).getTime()) / (1000 * 60 * 60);
-        
-        if (hoursAgo < 1) { // 1시간 이내 데이터
-          console.log(`📊 최신 저장 데이터 사용 (${hoursAgo.toFixed(1)}시간 전)`);
-          setCache(currency, {
-            current_rate: latestData.rate,
-            last_refreshed: latestData.timestamp
-          });
-          
-          return NextResponse.json({
-            success: true,
-            message: `${currency} 최신 저장 데이터 반환`,
-            api_source: 'Stored Data (Recent)',
-            current_rate: latestData.rate,
-            last_refreshed: latestData.timestamp,
-            hours_ago: hoursAgo.toFixed(1),
-            note: 'API 호출 한도 절약을 위해 저장된 최신 데이터 사용'
-          });
-        }
-      }
-    } catch (error) {
-      console.log('⚠️ 저장된 데이터 확인 실패:', error);
-    }
+    // 2. 저장된 데이터 확인 로직 완전 제거 - 항상 실시간 API 호출
+    console.log('🚀 실시간 API 호출 강제 실행...');
     
     // 3. 환경 변수 체크
     if (!process.env.ALPHA_VANTAGE_API_KEY) {
-      console.log('⚠️ Alpha Vantage API 키가 없습니다. 폴백 시스템 사용...');
+      console.log('⚠️ Alpha Vantage API 키가 없습니다. 실시간 폴백 시스템 사용...');
       
-      // 폴백: ExchangeRate-API 사용 (API 키 불필요)
+      // 폴백: ExchangeRate-API 사용 (API 키 불필요, 실시간 업데이트)
       try {
-        console.log('📡 ExchangeRate-API 폴백 호출 중...');
+        console.log('📡 ExchangeRate-API 실시간 호출 중...');
         const fallbackUrl = `https://api.exchangerate-api.com/v4/latest/${currency}`;
         const response = await fetch(fallbackUrl);
         
@@ -95,7 +70,7 @@ export async function GET(request: Request) {
             
             const lastRefreshed = new Date().toISOString();
             
-            console.log(`✅ ExchangeRate-API ${currency}/KRW 환율: ${currentRate}원`);
+            console.log(`✅ ExchangeRate-API ${currency}/KRW 실시간 환율: ${currentRate}원`);
             
             await saveForexData({
               currency: currency,
@@ -107,8 +82,8 @@ export async function GET(request: Request) {
 
             const result = {
               success: true,
-              message: `${currency} ExchangeRate-API 폴백 환율 업데이트 완료`,
-              api_source: 'ExchangeRate-API (Fallback)',
+              message: `${currency} ExchangeRate-API 실시간 환율 업데이트 완료`,
+              api_source: 'ExchangeRate-API (Real-time)',
               current_rate: currentRate,
               last_refreshed: lastRefreshed,
               stored_data_count: storedData.length,
@@ -116,7 +91,7 @@ export async function GET(request: Request) {
                 rate: d.rate,
                 timestamp: d.timestamp
               })),
-              warning: 'Alpha Vantage API 키가 없어 폴백 시스템 사용 중'
+              note: '실시간 환율 데이터 - 캐시 없음'
             };
 
             setCache(currency, {
@@ -128,12 +103,12 @@ export async function GET(request: Request) {
           }
         }
       } catch (fallbackError) {
-        console.log('⚠️ ExchangeRate-API 폴백도 실패:', fallbackError);
+        console.log('⚠️ ExchangeRate-API 실시간 호출 실패:', fallbackError);
       }
       
-      // 최후 폴백: 저장된 최신 데이터 반환
+      // 모든 실시간 API 실패 시에만 저장된 데이터 반환
       try {
-        console.log('📥 저장된 최신 데이터 조회 중...');
+        console.log('📥 모든 실시간 API 실패 - 저장된 최신 데이터 조회...');
         const storedData = await getForexData(currency, 1);
         
         if (storedData && storedData.length > 0) {
@@ -143,7 +118,7 @@ export async function GET(request: Request) {
           return NextResponse.json({
             success: true,
             message: `${currency} 저장된 최신 환율 반환`,
-            api_source: 'Stored Data (Last Resort)',
+            api_source: 'Stored Data (API Failure Fallback)',
             current_rate: latestData.rate,
             last_refreshed: latestData.timestamp,
             stored_data_count: 1,
@@ -151,7 +126,7 @@ export async function GET(request: Request) {
               rate: latestData.rate,
               timestamp: latestData.timestamp
             }],
-            warning: 'API 키가 없어 저장된 최신 데이터 사용 중. 환경 변수를 설정해주세요.'
+            warning: '모든 실시간 API 실패로 저장된 데이터 사용. 환경 변수를 설정해주세요.'
           });
         }
       } catch (storedError) {
@@ -159,10 +134,68 @@ export async function GET(request: Request) {
       }
       
       // 모든 방법 실패
-      throw new Error('환경 변수가 설정되지 않아 환율 데이터를 가져올 수 없습니다. Vercel 대시보드에서 API 키를 설정해주세요.');
+      throw new Error('모든 실시간 API와 저장된 데이터 접근이 실패했습니다.');
     }
     
-    // 4. Alpha Vantage API 호출 (한도 절약을 위해 최소화)
+    // 4. 실시간 우선: 여러 API를 순서대로 시도
+    console.log('🚀 실시간 API 호출 시작...');
+    
+    // 4-1. ExchangeRate-API 먼저 시도 (더 자주 업데이트됨)
+    try {
+      console.log('📡 ExchangeRate-API 실시간 데이터 호출 중...');
+      const exchangeRateUrl = `https://api.exchangerate-api.com/v4/latest/${currency}`;
+      const response = await fetch(exchangeRateUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.rates && data.rates.KRW) {
+          let currentRate = data.rates.KRW;
+          
+          // JPY는 100엔 기준으로 변환
+          if (currency === 'JPY') {
+            currentRate = currentRate * 100;
+          }
+          
+          const lastRefreshed = new Date().toISOString();
+          
+          console.log(`✅ ExchangeRate-API ${currency}/KRW 실시간 환율: ${currentRate}원`);
+          
+          await saveForexData({
+            currency: currency,
+            rate: currentRate,
+            timestamp: lastRefreshed
+          });
+
+          const storedData = await getForexData(currency, 5);
+
+          const result = {
+            success: true,
+            message: `${currency} ExchangeRate-API 실시간 환율 업데이트 완료`,
+            api_source: 'ExchangeRate-API (Real-time)',
+            current_rate: currentRate,
+            last_refreshed: lastRefreshed,
+            stored_data_count: storedData.length,
+            recent_rates: storedData.slice(0, 3).map(d => ({
+              rate: d.rate,
+              timestamp: d.timestamp
+            })),
+            note: '실시간 환율 데이터 - 캐시 없음'
+          };
+
+          setCache(currency, {
+            current_rate: currentRate,
+            last_refreshed: lastRefreshed
+          });
+
+          return NextResponse.json(result);
+        }
+      }
+    } catch (exchangeError) {
+      console.log('⚠️ ExchangeRate-API 실패:', exchangeError);
+    }
+
+    // 4-2. Alpha Vantage API 호출 (백업)
     try {
       console.log('🚀 Alpha Vantage API 실시간 데이터 호출 중...');
       
