@@ -517,7 +517,23 @@ export default function CurrencyDetailPage() {
 
     } catch (error) {
       console.error('❌ 데이터 가져오기 오류:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 오류 메시지를 안전하게 추출
+      let errorMessage = '알 수 없는 오류가 발생했습니다.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        // 객체인 경우 JSON으로 변환하여 디버깅 정보 제공
+        try {
+          errorMessage = JSON.stringify(error, null, 2);
+        } catch {
+          errorMessage = '오류 객체를 파싱할 수 없습니다.';
+        }
+      }
+      
       setError(`데이터를 가져오는 중 오류가 발생했습니다: ${errorMessage}`);
       setIsLoading(false);
     }

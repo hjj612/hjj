@@ -97,7 +97,7 @@ export default function ForexChatbot() {
       // 봇 응답 추가
       const botResponse: Message = {
         id: Date.now() + 1,
-        text: data.response || data.error,
+        text: data.response || data.error || '응답을 처리할 수 없습니다.',
         sender: 'bot',
         timestamp: new Date().toISOString(), // 문자열로 저장
       };
@@ -105,9 +105,17 @@ export default function ForexChatbot() {
       setMessages(prev => [...prev, botResponse]);
     } catch (error) {
       console.error('Error:', error);
+      
+      // 안전한 오류 메시지 생성
+      let safeErrorMessage = '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      
+      if (error instanceof Error) {
+        safeErrorMessage = `오류: ${error.message}`;
+      }
+      
       const errorMessage: Message = {
         id: Date.now() + 1,
-        text: '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        text: safeErrorMessage,
         sender: 'bot',
         timestamp: new Date().toISOString(), // 문자열로 저장
       };
